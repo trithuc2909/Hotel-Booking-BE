@@ -1,8 +1,37 @@
+# Dependencies
 node_modules/
+
+# Compiled TypeScript
 dist/
+
+# Environment variables
 .env
 .env.local
 .env.*.local
+.env.dev
+.env.prod
+.env.production
+.env.uat
+.env.staging
+
+# NHƯNG CHO PHÉP .env.example
+!.env.example
+
+# Log files
+logs/
 *.log
+
+# OS files
 .DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Prisma generated
 /src/generated/prisma
+
+# Uploads
+src/Uploads/
+public/uploads/
