@@ -3,6 +3,7 @@ node_modules/
 
 # Compiled TypeScript
 dist/
+build/
 
 # Environment variables
 .env
@@ -31,6 +32,9 @@ Thumbs.db
 
 # Prisma generated
 /src/generated/prisma
+
+# Prisma
+prisma/migrations/**/migration.sql
 
 # Uploads
 src/Uploads/

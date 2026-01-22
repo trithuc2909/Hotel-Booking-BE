@@ -5,6 +5,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 // QUẢN LÝ NGƯỜI DÙNG & PHÂN QUYỀN
@@ -39,19 +40,22 @@ enum UserRole {
 
 model RoomType {
   id                    String    @id @default(cuid())
-  name                  String    @unique // VD: "Deluxe", "Suite", "Standard"
+  code                  String    @unique // VD: "Deluxe", "Suite", "Standard"
+  name                  String    
   description           String?
-  basePrice             Decimal   @db.Decimal(10, 2) // Giá cơ bản
-  maxGuests             Int       // Số khách tối đa
-  amenities             String[]  // Tiện nghi: ["WiFi", "TV", "Air Conditioner"]
-  images                String[]  // URLs của hình ảnh
+  basePrice             Decimal   @db.Decimal(10, 2) 
+  maxGuests             Int       
+  thumbnailUrl          String
   status                String?   @default("ACT") @db.VarChar(5)
   createdOn             DateTime? @default(now()) @db.Timestamp(6)
   createdBy             String?   @db.VarChar(100)
   modifiedOn            DateTime? @db.Timestamp(6)
   modifiedBy            String?   @db.VarChar(100)
 
-  rooms Room[]
+  rooms                 Room[]
+  amenities             RoomTypeAmenity[]
+  images                RoomTypeImage[]
+
   @@map("room_types")
 }
 model Room {
@@ -70,6 +74,17 @@ model Room {
   bookings              Booking[]
   @@map("rooms")
 }
+model RoomTypeImage {
+  id             String     @id @default(cuid())
+  roomTypeId     String
+  imageUrls      String
+  displayOrder   Int        @default(0)  //Thứ tự hiển thị
+  createdOn      DateTime?  @default(now()) @db.Timestamp(6)
+
+  roomType RoomType @relation(fields: [roomTypeId], references: [id])
+
+  @@map("room_type_images")
+}
 enum RoomStatus {
   AVAILABLE    // Phòng trống
   OCCUPIED     // Đang có khách
@@ -77,25 +92,51 @@ enum RoomStatus {
   MAINTENANCE  // Đang bảo trì
   RESERVED     // Đã đặt trước
 }
+model Amenity {
+  id        String @id @default(cuid())
+  name      String @unique
+  status    String @default("ACT") @db.VarChar(5)
+
+  roomTypes RoomTypeAmenity[]
+
+  @@map("amenities")
+}
+model RoomTypeAmenity {
+  roomTypeId  String
+  amenityId   String
+
+  roomType    RoomType @relation(fields: [roomTypeId], references: [id])
+  amenity     Amenity  @relation(fields: [amenityId], references: [id])
+
+  @@id([roomTypeId, amenityId])
+  @@map("room_type_amenities")
+}
 
 // ============================================
 // REGION: QUẢN LÝ KHÁCH HÀNG
 // ============================================
 
+enum CustomerType {
+  INDIVIDUAL    // Khách lẻ
+  VIP           // Khách VIP
+  CORPORATE     // Doanh nghiệp
+  REGULAR       // Khách quen
+}
 model Customer {
-  id                    String     @id @default(cuid())
-  fullName              String
-  email                 String?
-  phone                 String     @unique
-  idCard                String?    @unique // CMND/CCCD
-  address               String?
-  nationality           String?    @default("Vietnam")
-  dateOfBirth           DateTime?
-  notes                 String?
-  createdOn             DateTime?  @default(now()) @db.Timestamp(6)
-  modifiedOn            DateTime?  @db.Timestamp(6)
+  id                String        @id @default(cuid())
+  customerType      CustomerType  @default(INDIVIDUAL)
+  fullName          String
+  email             String?
+  phone             String        @unique
+  idCard            String?       @unique // CMND/CCCD
+  address           String?
+  nationality       String?       @default("Vietnam")
+  dateOfBirth       DateTime?
+  notes             String?
+  createdOn         DateTime?     @default(now()) @db.Timestamp(6)
+  modifiedOn        DateTime?     @db.Timestamp(6)
   
-  bookings              Booking[]
+  bookings          Booking[]
   @@map("customers")
 }
 
@@ -104,27 +145,34 @@ model Customer {
 // ============================================
 
 model Booking {
-  id              String        @id @default(cuid())
-  bookingCode     String        @unique // Mã đặt phòng: "BK-20260110001"
-  customerId      String
-  roomId          String
-  checkInDate     DateTime
-  checkOutDate    DateTime
-  numberOfGuests  Int
-  totalAmount     Decimal       @db.Decimal(10, 2)
-  depositAmount   Decimal       @default(0) @db.Decimal(10, 2)
-  status          BookingStatus @default(PENDING)
-  notes           String?
-  createdOn       DateTime?     @default(now()) @db.Timestamp(6)
-  createdById     String?
-  modifiedOn      DateTime?     @db.Timestamp(6)
-  modifiedBy      String?       @db.VarChar(100)
+  id                   String        @id @default(cuid())
+  bookingCode          String        @unique // Mã đặt phòng: "BK-20260110001"
+  customerId           String
+  roomId               String
+  checkInDate          DateTime
+  checkOutDate         DateTime
+  actualCheckInDate    DateTime?  
+  actualCheckOutDate   DateTime?
+  numberOfGuests       Int
+  roomPrice            Decimal       @db.Decimal(10,2)
+  totalService         Decimal       @default(0) @db.Decimal(10,2)
+  discount             Decimal       @default(0) @db.Decimal(10,2)
+  totalAmount          Decimal       @db.Decimal(10, 2)
+  depositAmount        Decimal       @default(0) @db.Decimal(10, 2)
+  paidAmount           Decimal       @default(0) @db.Decimal(10, 2)
+  status               BookingStatus @default(PENDING)
+  notes                String?
+  createdOn            DateTime?     @default(now()) @db.Timestamp(6)
+  createdById          String?
+  modifiedOn           DateTime?     @db.Timestamp(6)
+  modifiedBy           String?       @db.VarChar(100)
 
-  customer        Customer      @relation(fields: [customerId], references: [id])
-  room            Room          @relation(fields: [roomId], references: [id])
-  createdBy       User?         @relation(fields: [createdById], references: [id])
-  payments        Payment[]
-  services        BookingService[]
+  customer             Customer      @relation(fields: [customerId], references: [id])
+  room                 Room          @relation(fields: [roomId], references: [id])
+  createdBy            User?         @relation(fields: [createdById], references: [id])
+  payments             Payment[]
+  services             BookingService[]
+
   @@map("bookings")
 }
 enum BookingStatus {
@@ -139,31 +187,43 @@ enum BookingStatus {
 // ============================================
 // REGION: QUẢN LÝ DỊCH VỤ
 // ============================================
+model ServiceCategory {
+  id        String  @id @default(cuid())
+  name      String  @unique
+  status    String  @default("ACT") @db.VarChar(5)
+
+  services  Service[]
+
+  @@map("service_categories")
+}
 
 model Service {
-  id          String     @id @default(cuid())
-  name        String     @unique // VD: "Giặt ủi", "Spa", "Ăn sáng"
-  description String?
-  price       Decimal    @db.Decimal(10, 2)
-  unit        String     // Đơn vị: "lần", "người", "món"
-  category    String?    // Phân loại: "F&B", "Laundry", "Spa"
-  status      String?    @default("ACT") @db.VarChar(5)
-  createdOn   DateTime?  @default(now()) @db.Timestamp(6)
-  createdBy   String?    @db.VarChar(100)
-  modifiedOn  DateTime?  @db.Timestamp(6)
-  modifiedBy  String?    @db.VarChar(100)
+  id                  String     @id @default(cuid())
+  serviceCategoryId   String
+  name                String     @unique // VD: "Giặt ủi", "Spa", "Ăn sáng"
+  description         String?
+  basePrice           Decimal    @db.Decimal(10, 2)
+  unit                String     // Đơn vị: "lần", "người", "món"
+  status              String?    @default("ACT") @db.VarChar(5)
+  createdOn           DateTime?  @default(now()) @db.Timestamp(6)
+  createdBy           String?    @db.VarChar(100)
+  modifiedOn          DateTime?  @db.Timestamp(6)
+  modifiedBy          String?    @db.VarChar(100)
 
-  bookingServices BookingService[]
+  category            ServiceCategory   @relation(fields: [serviceCategoryId], references: [id])
+  bookingServices     BookingService[]
+
   @@map("services")
 }
 model BookingService {
   id          String   @id @default(cuid())
   bookingId   String
   serviceId   String
+  serviceName String
   quantity    Int      @default(1)
+  unit        String
   unitPrice   Decimal  @db.Decimal(10, 2) // Giá tại thời điểm sử dụng
   totalPrice  Decimal  @db.Decimal(10, 2)
-  notes       String?
   status      String?    @default("ACT") @db.VarChar(5)
   createdOn   DateTime?  @default(now()) @db.Timestamp(6)
   createdBy   String?    @db.VarChar(100)
@@ -182,6 +242,7 @@ model BookingService {
 model Payment {
   id              String        @id @default(cuid())
   bookingId       String
+  transactionId   String?
   amount          Decimal       @db.Decimal(10, 2)
   paymentMethod   PaymentMethod
   paymentDate     DateTime      @default(now())

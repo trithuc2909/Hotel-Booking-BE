@@ -1,12 +1,13 @@
 import dotenv from "dotenv";
 import config from "./config";
 import express, { Application, Request, Response } from "express";
-import testRoutes from './api/test.routes';
+import testRoutes from "./api/test.routes";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import logger from "./config/logger.config";
 import morgan from "morgan";
 import { errorHandler, notFoundHandler } from "./middleware/error.middleware";
+import performanceMonitoring from "./middleware/performance.middleware";
 
 dotenv.config(); // Load biến từ .env
 
@@ -44,7 +45,7 @@ app.use(morgan("combined", { stream }));
 
 // Test routes
 if (config.isDevelopment) {
-  app.use('/api/test', testRoutes);
+  app.use("/api/test", testRoutes);
 }
 
 // 404 Handler
@@ -52,5 +53,7 @@ app.use(notFoundHandler);
 
 // Error Handler
 app.use(errorHandler);
+
+app.use(performanceMonitoring);
 
 export default app;

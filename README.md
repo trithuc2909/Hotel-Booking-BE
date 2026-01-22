@@ -23,7 +23,7 @@ API quản lý khách sạn với Node.js, Express, TypeScript và Prisma.
 ```bash
 1. git clone <repository-url>
 2. cd Hotel-Booking-BE
-3. Copy `.env.example` thành [.env](cci:7://file:///d:/PDF-BE/phf-api/.env:0:0-0:0) và điền thông tin database
+3. Copy `.env.example` thành [.env](cci:7://file:///d:/Hotel-Booking-BE/.env:0:0-0:0) và điền thông tin database
 4. Chạy migrations: `npx prisma migrate dev`
 5. Chạy server: `npm run dev`
 
