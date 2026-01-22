@@ -8,6 +8,11 @@ import logger from "./config/logger.config";
 import morgan from "morgan";
 import { errorHandler, notFoundHandler } from "./middleware/error.middleware";
 import performanceMonitoring from "./middleware/performance.middleware";
+import {
+  preventParameterPollution,
+  requestSizeLimit,
+  securityHeaders,
+} from "./middleware/security.middleware";
 
 dotenv.config(); // Load biến từ .env
 
@@ -18,7 +23,7 @@ app.use(
   cors({
     origin: process.env.CORS_ORIGIN || "http://localhost:3000",
     credentials: true,
-  })
+  }),
 );
 
 // Middleware to parse JSON
@@ -39,6 +44,10 @@ const stream = {
 
 // moragan middleware
 app.use(morgan("combined", { stream }));
+
+app.use(securityHeaders);
+app.use(preventParameterPollution);
+app.use(requestSizeLimit);
 
 // API Routes (sẽ thêm sau)
 // app.use('/api/v1', apiRoutes);
