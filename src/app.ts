@@ -2,6 +2,7 @@ import dotenv from "dotenv";
 import config from "./config";
 import express, { Application, Request, Response } from "express";
 import testRoutes from "./api/test.routes";
+import apiRoutes from "./api";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import logger from "./config/logger.config";
@@ -32,11 +33,6 @@ app.use(express.json());
 // Middleware to parse cookies
 app.use(cookieParser());
 
-// Health check endpoint
-app.get("/health", (req: Request, res: Response) => {
-  res.status(200).json({ status: "OK", message: "Server is healthy" });
-});
-
 // Create stream for morgan
 const stream = {
   write: (message: string) => logger.http(message.trim()), // log Http requests
@@ -48,21 +44,25 @@ app.use(morgan("combined", { stream }));
 app.use(securityHeaders);
 app.use(preventParameterPollution);
 app.use(requestSizeLimit);
+app.use(performanceMonitoring);
 
-// API Routes (sẽ thêm sau)
-// app.use('/api/v1', apiRoutes);
+// API Routes
+app.use("/api/v1", apiRoutes);
 
 // Test routes
 if (config.isDevelopment) {
   app.use("/api/test", testRoutes);
 }
 
+// Health check endpoint
+app.get("/health", (req: Request, res: Response) => {
+  res.status(200).json({ status: "OK", message: "Server is healthy" });
+});
+
 // 404 Handler
 app.use(notFoundHandler);
 
 // Error Handler
 app.use(errorHandler);
-
-app.use(performanceMonitoring);
 
 export default app;

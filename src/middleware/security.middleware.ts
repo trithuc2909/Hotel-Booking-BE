@@ -18,8 +18,8 @@ export const securityHeaders = (
       "Content-Security-Policy",
       "default-src 'self'; script-src 'self' 'unsafe-inline';",
     );
-    next();
   }
+  next();
 };
 
 // Prevent parameter pollution middleware
