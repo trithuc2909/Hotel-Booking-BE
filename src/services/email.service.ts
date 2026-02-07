@@ -38,21 +38,26 @@ class EmailService {
   async sendRegistrationOTP(
     email: string,
     fullName: string,
+    userId: string,
     otp: string,
   ): Promise<void> {
     // Create verify URL (frontend URL)
-    const verifyUrl = `${config.frontend.url}/verify-email?otp=${otp}`;
+    const verifyUrl = `${config.frontend.url}/verify-otp?userId=${userId}`;
 
     // Compile template
     const { subject, html } = renderEmailTemplate(EmailType.REGISTRATION_OTP, {
       name: fullName,
       otp: otp,
       verifyUrl: verifyUrl,
-      expiresIn: `${config.otp.expiresMinutes} minutes`,
+      expiresIn: `${config.otp.expiresMinutes} phút`,
+      logoUrl:
+        process.env.DEFAULT_LOGO_BULLMANHOTEL ||
+        `${config.frontend.url}/images/logo-default.jpg`,
+      supportEmail:
+        config.email.smtp.supportEmail || "support@bullmanhotel.com",
     });
-
     // Send email
-    await this.sendEmail(email, subject || "Verify your email", html);
+    await this.sendEmail(email, subject || "Xác thực email của bạn", html);
   }
 
   // Verify SMTP connection

@@ -8,17 +8,21 @@ import { ROLE } from "../constant/role.constant";
 import { generateToken } from "../utils/jwt";
 import otpService from "./otp.service";
 import { OTPType } from "@prisma/client";
+import { error } from "node:console";
 
-export const signUpAccount = async (data: RegisterRequest): Promise<void> => {
-  // Check if email exists
-  const existingEmail = await prisma.user.findFirst({
-    where: {
-      email: {
-        equals: data.email,
-        mode: "insensitive",
-      },
-    },
-  });
+export const signUpAccount = async (
+  data: RegisterRequest,
+): Promise<{ userId: string }> => {
+  const [existingEmail, existingUsername] = await Promise.all([
+    // Check if email exists
+    prisma.user.findFirst({
+      where: { email: { equals: data.email, mode: "insensitive" } },
+    }),
+    // Check if username exists
+    prisma.user.findFirst({
+      where: { username: { equals: data.username, mode: "insensitive" } },
+    }),
+  ]);
 
   if (existingEmail) {
     throw AppError.conflict(
@@ -26,16 +30,6 @@ export const signUpAccount = async (data: RegisterRequest): Promise<void> => {
       "EMAIL_ALREADY_EXISTS",
     );
   }
-
-  // Check if userName exists
-  const existingUsername = await prisma.user.findFirst({
-    where: {
-      username: {
-        equals: data.username,
-        mode: "insensitive",
-      },
-    },
-  });
 
   if (existingUsername) {
     throw AppError.conflict(
@@ -45,24 +39,30 @@ export const signUpAccount = async (data: RegisterRequest): Promise<void> => {
   }
 
   // Hash password
-  const hashedPassword = await bcrypt.hash(data.password, 10);
+  const hashedPasswordPromise = bcrypt.hash(data.password, 10);
+  const hashedPassword = await hashedPasswordPromise;
 
   // Create user
   const user = await prisma.user.create({
     data: {
       email: data.email.toLowerCase(),
-      username: data.username.toLowerCase(),
+      username: data.username,
       password: hashedPassword,
       role: ROLE.USER,
       status: STATUS.INACTIVE,
     },
   });
 
-  await otpService.createAndSendRegistrationOTP(
-    user.id,
-    user.email,
-    user.username,
-  );
+  // Send OTP email
+  otpService
+    .createAndSendRegistrationOTP(user.id, user.email, user.username)
+    .catch((error) => {
+      console.log("Lỗi khi gửi OTP đến email: ", error);
+    });
+
+  return {
+    userId: user.id,
+  };
 };
 
 export const login = async (data: LoginRequest): Promise<AuthResponse> => {
@@ -171,5 +171,7 @@ export const resendRegistrationOTP = async (userId: string): Promise<void> => {
   }
 
   // Resend OTP
-  await otpService.resendOTP(userId, OTPType.REGISTER);
+  otpService.resendOTP(userId, OTPType.REGISTER).catch((error) => {
+    console.log("Lỗi khi gửi lại OTP: ", error);
+  });
 };

@@ -27,6 +27,8 @@ model User {
   payments  Payment[]
 
   @@map("users")
+  @@index([email])
+  @@index([username])
 }
 enum UserRole {
   ADMIN

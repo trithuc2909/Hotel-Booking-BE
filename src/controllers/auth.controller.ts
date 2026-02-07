@@ -9,7 +9,6 @@ import { catchAsyncErrorWithCode } from "../utils/catchAsyncError";
 import * as authService from "../services/auth.service";
 import { Response } from "express";
 import { ResponseHelper } from "../utils/response";
-import { json } from "node:stream/consumers";
 
 export const signUpAccount = catchAsyncErrorWithCode(
   async (req: BodyRequest<RegisterRequest>, res: Response) => {

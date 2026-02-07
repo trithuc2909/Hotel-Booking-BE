@@ -51,6 +51,8 @@ const config = {
       host: process.env.SMTP_HOST,
       port: parseInt(process.env.SMTP_PORT || "587"),
       secure: false, // true for 465, false for other ports
+      supportEmail:
+        process.env.SMTP_SUPPORT_EMAIL || "support@bullmanhotel.com",
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASSWORD,

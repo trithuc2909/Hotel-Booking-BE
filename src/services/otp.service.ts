@@ -22,20 +22,22 @@ class OTPService {
     email: string,
     username: string,
   ): Promise<void> {
-    // Delete old OTP
-    await prisma.oTP.deleteMany({
-      where: {
-        userId,
-        purpose: "REGISTER",
-        usedOn: null,
-      },
-    });
-
     // Generate OTP code
     const otpCode = this.generateOTPCode();
 
-    // Hash OTP code
-    const hasedCode = await bcrypt.hash(otpCode, 10);
+    const [hashedCode] = await Promise.all([
+      // Hash OTP code
+      crypto.createHash("sha256").update(otpCode).digest("hex"),
+
+      // Delete old OTP
+      prisma.oTP.deleteMany({
+        where: {
+          userId,
+          purpose: OTPType.REGISTER,
+          usedOn: null,
+        },
+      }),
+    ]);
 
     // Calculate OTP expires time
     const expiresAt = new Date(
@@ -46,14 +48,14 @@ class OTPService {
     await prisma.oTP.create({
       data: {
         userId,
-        code: hasedCode,
+        code: hashedCode,
         purpose: OTPType.REGISTER,
         expiresAt,
       },
     });
 
     // Send OTP to email
-    await emailService.sendRegistrationOTP(email, username, otpCode);
+    await emailService.sendRegistrationOTP(email, username, userId, otpCode);
   }
 
   async verifyOTP(
@@ -73,22 +75,24 @@ class OTPService {
       },
     });
 
-    if (otps.length === 0) {
-      throw AppError.validation(
-        "Mã OTP không hợp lệ hoặc đã hết hạn",
-        "INVALID_OTP",
-      );
-    }
+    // Hash input code
+    const hashedInputCode = crypto
+      .createHash("sha256")
+      .update(code)
+      .digest("hex");
 
     // Find OTP match
-    let matchOTP = null;
-    for (const otp of otps) {
-      const isMatch = await bcrypt.compare(code, otp.code);
-      if (isMatch) {
-        matchOTP = otp;
-        break;
-      }
-    }
+    const matchOTP = await prisma.oTP.findFirst({
+      where: {
+        userId,
+        purpose,
+        code: hashedInputCode,
+        usedOn: null,
+      },
+      orderBy: {
+        createdOn: "desc",
+      },
+    });
 
     if (!matchOTP) {
       throw AppError.validation("Mã OTP không hợp lệ", "INVALID_OTP");

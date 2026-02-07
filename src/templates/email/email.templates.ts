@@ -5,7 +5,7 @@ import AppError from "../../utils/appError";
 
 const templateMap: Record<EmailType, { subject: string; file: string }> = {
   [EmailType.REGISTRATION_OTP]: {
-    subject: "Verify your email",
+    subject: "Xác thực tài khoản - BullManHotel",
     file: "registration-otp.html",
   },
 };
