@@ -14,6 +14,9 @@ import {
   requestSizeLimit,
   securityHeaders,
 } from "./middleware/security.middleware";
+import { ensureBucket } from "./config/minio.config";
+import { MINIO_BUCKET } from "./constant/minio.constant";
+import AppError from "./utils/appError";
 
 dotenv.config(); // Load biến từ .env
 
@@ -64,5 +67,17 @@ app.use(notFoundHandler);
 
 // Error Handler
 app.use(errorHandler);
+
+// Upload minio storage
+async function initializeStorage() {
+  try {
+    await ensureBucket(MINIO_BUCKET.IMAGES);
+    logger.info("MinIO buckets initialized successfully");
+  } catch (error) {
+    logger.error("Failed to initialize MinIO buckets", error);
+  }
+}
+
+initializeStorage();
 
 export default app;
