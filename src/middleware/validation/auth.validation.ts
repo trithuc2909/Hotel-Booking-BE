@@ -117,3 +117,46 @@ export const resendOTPValidation: ValidationChain[] = [
     .isString()
     .withMessage("User ID phải là chuỗi"),
 ];
+
+export const forgotPasswordValidation: ValidationChain[] = [
+  body("email")
+    .trim()
+    .notEmpty()
+    .withMessage("Email không được để trống")
+    .bail()
+    .isEmail()
+    .withMessage("Email không hợp lệ")
+    .normalizeEmail(),
+];
+
+export const resetPasswordValidation: ValidationChain[] = [
+  body("token").trim().notEmpty().withMessage("Token không được để trống"),
+
+  body("newPassword")
+    .trim()
+    .notEmpty()
+    .withMessage("Mật khẩu mới không được để trống")
+    .bail()
+    .isLength({ min: 8 })
+    .withMessage("Mật khẩu phải có ít nhất 8 ký tự")
+    .matches(/[A-Z]/)
+    .withMessage("Mật khẩu phải chứa ít nhất một chữ cái in hoa")
+    .matches(/[a-z]/)
+    .withMessage("Mật khẩu phải chứa ít nhất một chữ cái in thường")
+    .matches(/[0-9]/)
+    .withMessage("Mật khẩu phải chứa ít nhất một chữ số")
+    .matches(/[!@#$%^&*(),.?":{}|<>]/)
+    .withMessage("Mật khẩu phải chứa ít nhất một ký tự đặc biệt"),
+
+  body("confirmPassword")
+    .trim()
+    .notEmpty()
+    .withMessage("Xác nhận mật khẩu không được để trống")
+    .bail()
+    .custom((value, { req }) => {
+      if (value !== req.body.newPassword) {
+        throw new Error("Mật khẩu xác nhận không khớp");
+      }
+      return true;
+    }),
+];

@@ -1,5 +1,6 @@
 export enum EmailType {
   REGISTRATION_OTP = "REGISTRATION_OTP",
+  RESET_PASSWORD = "RESET_PASSWORD",
 }
 
 export interface SendEmailProps {

@@ -288,3 +288,24 @@ enum PaymentMethod {
   MOMO          // Ví MoMo
   VNPAY         // VNPay
 }
+
+
+// ============================================
+// REGION: QUẢN LÝ CODES
+// ============================================
+
+model Code {
+  id          String     @id @default(cuid())
+  type        String     @db.VarChar(50) // BOOKING_STATUS, ROOM_STATUS
+  code        String     @db.VarChar(50)
+  displayAs   String     @db.VarChar(100)
+  isActive    Boolean    @default(true)
+  createdOn   DateTime?  @default(now()) @db.Timestamp(6)
+  createdBy   String?    @db.VarChar(100)
+  modifiedOn  DateTime?  @db.Timestamp(6)
+  modifiedBy  String?    @db.VarChar(100)
+
+  @@unique([type, code])
+  @@index([type])
+  @@map("codes")
+}

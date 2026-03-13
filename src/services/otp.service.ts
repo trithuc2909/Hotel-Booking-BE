@@ -5,6 +5,7 @@ import emailService from "./email.service";
 import bcrypt from "bcryptjs";
 import { OTPType } from "@prisma/client";
 import AppError from "../utils/appError";
+import { pid } from "process";
 
 class OTPService {
   // Generate random OTP code
@@ -137,6 +138,86 @@ class OTPService {
         user.username,
       );
     }
+  }
+
+  async createAndSendResetPasswordToken(
+    userId: string,
+    email: string,
+    username: string,
+  ): Promise<void> {
+    // Generate random token secure
+    const resetToken = crypto.randomBytes(32).toString("hex");
+
+    // Hash token
+    const hashedToken = crypto.createHash("sha256").update(resetToken).digest("hex");
+
+    // Calculate token expires time
+    const expiresAt = new Date(Date.now() + config.reset_password.expiresMinutes * 60 * 1000);
+
+    // Use transaction to avoid race condition
+    await prisma.$transaction([
+      prisma.oTP.deleteMany({
+        where: {
+          userId,
+          purpose: OTPType.RESET_PASSWORD,
+          usedOn: null,
+        },
+      }),
+
+      prisma.oTP.create({
+        data: {
+          userId,
+          code: hashedToken,
+          purpose: OTPType.RESET_PASSWORD,
+          expiresAt,
+        },
+      }),
+    ]);
+
+    // Build reset password url
+    const resetUrl = `${config.frontend.url}/reset-password?token=${resetToken}`;
+
+    // Send email
+    await emailService.sendResetPasswordEmail(email, username, resetUrl);
+  }
+
+  // Verify reset password token
+  async verifyResetPasswordToken(token: string): Promise<string> {
+    // Hash token
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+
+    const otpRecord = await prisma.oTP.findFirst({
+      where: {
+        code: hashedToken,
+        purpose: OTPType.RESET_PASSWORD,
+        usedOn: null,
+      },
+    });
+
+    if (!otpRecord) {
+      throw AppError.badRequest("Link đặt lại mật khẩu không hợp lệ", "INVALID_RESET_TOKEN");
+    }
+
+    // Check token expired
+    if (otpRecord.expiresAt < new Date()) {
+      throw AppError.badRequest("Link đặt lại mật khẩu đã hết hạn", "RESET_PASSWORD_EXPIRED");
+    }
+
+    const result = await prisma.oTP.updateMany({
+      where: {
+        id: otpRecord.id,
+        usedOn: null,
+      },
+      data: {
+        usedOn: new Date(),
+      }
+    });
+
+    if (result.count === 0) {
+      throw AppError.badRequest("Link đặt lại mật khẩu đã được sử dụng", "RESET_TOKEN_USED");
+    }
+
+    return otpRecord.userId;
   }
 }
 

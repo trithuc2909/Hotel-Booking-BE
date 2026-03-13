@@ -8,7 +8,7 @@ import { ROLE } from "../constant/role.constant";
 import { generateToken } from "../utils/jwt";
 import otpService from "./otp.service";
 import { OTPType } from "@prisma/client";
-import { error } from "node:console";
+import { ROLE_CONSTANTS } from "../constant/common.constant";
 
 export const signUpAccount = async (
   data: RegisterRequest,
@@ -175,3 +175,70 @@ export const resendRegistrationOTP = async (userId: string): Promise<void> => {
     console.log("Lỗi khi gửi lại OTP: ", error);
   });
 };
+
+export const forgotPassword = async (email: string): Promise<void> => {
+  const user = await prisma.user.findFirst({
+    where: {
+      email: {equals: email, mode: "insensitive"},
+    },
+    select: {
+      id: true,
+      email: true,
+      username: true,
+      status: true,
+    }
+  });
+
+  if (!user) return;
+
+  if (user.status !== STATUS.ACTIVE) return;
+
+  // Fire and forget
+  void otpService
+    .createAndSendResetPasswordToken(user.id, user.email, user.username)
+    .catch((error) => {
+      console.error("Failed to send reset password email:", error);
+    });
+}
+
+export const resetPassword = async (token: string, newPassword: string): Promise<void> => {
+  const userId = await otpService.verifyResetPasswordToken(token);
+
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+  const user = await prisma.user.findUnique({
+    where: {id: userId},
+    select: {password: true}
+  })
+
+  if (!user) {
+    throw AppError.notFound("Người dùng không tồn tại", "USER_NOT_FOUND");
+  }
+
+  const isSamePassword = await bcrypt.compare(newPassword, user.password);
+  if (isSamePassword) {
+    throw AppError.badRequest("Mật khẩu mới không được trùng với mật khẩu cũ", "SAME_PASSWORD");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.user.update({
+      where: {id: userId},
+      data: {
+        password: hashedPassword,
+        modifiedOn: new Date(),
+        modifiedBy: ROLE_CONSTANTS.SYSTEM,
+      },
+    });
+
+    await tx.oTP.updateMany({
+      where: {
+        userId,
+        purpose: OTPType.RESET_PASSWORD,
+        usedOn: null,
+      },
+      data: {
+        usedOn: new Date(),
+      },
+    });
+  })
+}

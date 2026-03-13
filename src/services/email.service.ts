@@ -50,9 +50,7 @@ class EmailService {
       otp: otp,
       verifyUrl: verifyUrl,
       expiresIn: `${config.otp.expiresMinutes} phút`,
-      logoUrl:
-        process.env.DEFAULT_LOGO_BULLMANHOTEL ||
-        `${config.frontend.url}/images/logo-default.jpg`,
+      logoUrl: config.defaults.logoUrl,
       supportEmail:
         config.email.smtp.supportEmail || "support@bullmanhotel.com",
     });
@@ -70,6 +68,28 @@ class EmailService {
       logger.error("SMTP connection failed:", error);
       return false;
     }
+  }
+
+  // Send reset password
+  async sendResetPasswordEmail(
+    email: string,
+    username: string,
+    resetUrl: string,
+  ): Promise<void> {
+    if (!email) {
+      throw new Error("Email is required");
+    }
+
+    const { subject, html } = renderEmailTemplate(EmailType.RESET_PASSWORD, {
+      name: username,
+      resetUrl: encodeURI(resetUrl),
+      expiresIn: `${config.reset_password.expiresMinutes} phút`,
+      logoUrl: config.defaults.logoUrl,
+      supportEmail:
+        config.email.smtp.supportEmail || "support@bullmanhotel.com",
+    });
+
+    await this.sendEmail(email, subject || "Đặt lại mật khẩu", html);
   }
 }
 

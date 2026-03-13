@@ -1,8 +1,10 @@
 import { Router } from "express";
 import {
+  forgotPasswordValidation,
   handleValidationErrors,
   loginValidation,
   resendOTPValidation,
+  resetPasswordValidation,
   signUpValidation,
   verifyOTPValidation,
 } from "../middleware/validation";
@@ -42,4 +44,17 @@ router.post(
   authController.resendOTP,
 );
 
+router.post(
+  "/forgot-password",
+  forgotPasswordValidation,
+  handleValidationErrors,
+  authController.forgotPassword
+);
+
+router.post(
+  "/reset-password",
+  resetPasswordValidation,
+  handleValidationErrors,
+  authController.resetPassword
+)
 export default router;

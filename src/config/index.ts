@@ -73,6 +73,10 @@ const config = {
     length: 6,
   },
 
+  reset_password: {
+    expiresMinutes: 15, // Reset password link expires in 15 minutes
+  },
+
   minio: {
     endPoint: process.env.MINIO_ENDPOINT || "localhost",
     port: parseInt(process.env.MINIO_PORT || "9000"),
@@ -80,6 +84,10 @@ const config = {
     accessKey: process.env.MINIO_ACCESS_KEY || "minioadmin",
     secretKey: process.env.MINIO_SECRET_KEY || "trithuc290904",
     publicUrl: process.env.MINIO_PUBLIC_URL || "http://localhost:9000",
+  },
+
+  defaults: {
+    logoUrl: `${process.env.MINIO_PUBLIC_URL || "http://localhost:9000"}/images/defaults/logo-default.jpg`
   }
 };
 

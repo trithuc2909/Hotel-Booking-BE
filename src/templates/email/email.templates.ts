@@ -8,6 +8,10 @@ const templateMap: Record<EmailType, { subject: string; file: string }> = {
     subject: "Xác thực tài khoản - BullManHotel",
     file: "registration-otp.html",
   },
+  [EmailType.RESET_PASSWORD]: {
+    subject: "Đặt lại mật khẩu - BullManHotel",
+    file: "reset-password.html",
+  },
 };
 
 function compileTemplate(

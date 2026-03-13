@@ -7,7 +7,7 @@ import {
 import { BodyRequest } from "../types/request/base";
 import { catchAsyncErrorWithCode } from "../utils/catchAsyncError";
 import * as authService from "../services/auth.service";
-import { Response } from "express";
+import { NextFunction, Response, Request } from "express";
 import { ResponseHelper } from "../utils/response";
 
 export const signUpAccount = catchAsyncErrorWithCode(
@@ -77,3 +77,41 @@ export const resendOTP = catchAsyncErrorWithCode(
   },
   "RESEND_OTP_ERROR",
 );
+
+export const forgotPassword = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { email } = req.body;
+
+    await authService.forgotPassword(email);
+
+    res.status(200).json({
+      success: true,
+      message: "Nếu email tồn tại, chúng tôi đã gửi link đặt lại mật khẩu."
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export const resetPassword = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { token, newPassword } = req.body;
+
+    await authService.resetPassword(token, newPassword);
+
+    res.status(200).json({
+      success: true,
+      message: "Đặt lại mật khẩu thành công."
+    });
+  } catch (error) {
+    next(error);
+  }
+}

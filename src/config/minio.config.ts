@@ -14,21 +14,21 @@ export async function ensureBucket(bucketName: string): Promise<void> {
 
   if (!exists) {
     await minioClient.makeBucket(bucketName);
-
-    const policy = {
-      Version: "2012-10-17",
-      Statement: [
-        {
-          Effect: "Allow",
-          Principal: { AWS: ["*"] },
-          Action: ["s3:GetObject"],
-          Resource: [`arn:aws:s3:::${bucketName}/*`],
-        },
-      ],
-    };
-
-    await minioClient.setBucketPolicy(bucketName, JSON.stringify(policy));
   }
+
+  const policy = {
+    Version: "2012-10-17",
+    Statement: [
+      {
+        Effect: "Allow",
+        Principal: { AWS: ["*"] },
+        Action: ["s3:GetObject"],
+        Resource: [`arn:aws:s3:::${bucketName}/*`],
+      },
+    ],
+  };
+
+  await minioClient.setBucketPolicy(bucketName, JSON.stringify(policy));
 }
 
 export function getPublicUrl(bucketName: string, objectPath: string): string {
