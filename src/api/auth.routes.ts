@@ -57,4 +57,9 @@ router.post(
   handleValidationErrors,
   authController.resetPassword
 )
+
+router.get(
+  "/validate-reset-token",
+  authController.validateResetToken
+)
 export default router;

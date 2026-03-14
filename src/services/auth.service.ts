@@ -202,14 +202,14 @@ export const forgotPassword = async (email: string): Promise<void> => {
 }
 
 export const resetPassword = async (token: string, newPassword: string): Promise<void> => {
-  const userId = await otpService.verifyResetPasswordToken(token);
+  const { userId, otpId } = await otpService.verifyResetPasswordToken(token);
 
   const hashedPassword = await bcrypt.hash(newPassword, 10);
 
   const user = await prisma.user.findUnique({
-    where: {id: userId},
-    select: {password: true}
-  })
+    where: { id: userId },
+    select: { password: true },
+  });
 
   if (!user) {
     throw AppError.notFound("Người dùng không tồn tại", "USER_NOT_FOUND");
@@ -221,24 +221,34 @@ export const resetPassword = async (token: string, newPassword: string): Promise
   }
 
   await prisma.$transaction(async (tx) => {
-    await tx.user.update({
-      where: {id: userId},
-      data: {
-        password: hashedPassword,
-        modifiedOn: new Date(),
-        modifiedBy: ROLE_CONSTANTS.SYSTEM,
-      },
-    });
-
-    await tx.oTP.updateMany({
+    const markResult = await tx.oTP.updateMany({
       where: {
-        userId,
-        purpose: OTPType.RESET_PASSWORD,
+        id: otpId,
         usedOn: null,
       },
       data: {
         usedOn: new Date(),
       },
     });
-  })
+
+    if (markResult.count === 0) {
+      throw AppError.badRequest(
+        "Link đặt lại mật khẩu đã được sử dụng",
+        "RESET_TOKEN_USED",
+      );
+    }
+
+    await tx.user.update({
+      where: { id: userId },
+      data: {
+        password: hashedPassword,
+        modifiedOn: new Date(),
+        modifiedBy: ROLE_CONSTANTS.SYSTEM,
+      },
+    });
+  });
+}
+
+export const validateResetToken = async (token: string): Promise<boolean> => {
+  return otpService.validateResetToken(token);
 }
