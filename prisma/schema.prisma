@@ -14,7 +14,6 @@ model User {
   email         String    @unique
   username      String    @unique
   password      String    // Hashed password
-  phone         String?
   role          UserRole  @default(USER)
   status        String?   @default("INA") @db.VarChar(5)
   createdOn     DateTime? @default(now()) @db.Timestamp(6)
@@ -25,10 +24,30 @@ model User {
   otps      OTP[]
   bookings  Booking[]
   payments  Payment[]
+  profile   UserProfile?  
 
   @@map("users")
   @@index([email])
   @@index([username])
+}
+model UserProfile {
+  id            String      @id @default(cuid())
+  userId        String      @unique
+  fullName      String?
+  phone         String?
+  dateOfBirth   DateTime?
+  avatarUrl     String?
+  address       String?
+  nationality   String?
+
+  status        String?     @default("ACT") @db.VarChar(5)
+  createdOn     DateTime?   @default(now()) @db.Timestamp(6)
+  createdBy     String?     @db.VarChar(100)
+  modifiedOn    DateTime?   @db.Timestamp(6)
+  modifiedBy    String?     @db.VarChar(100)
+
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@map("user_profiles")
 }
 enum UserRole {
   ADMIN
@@ -63,51 +82,56 @@ enum OTPType {
 // ============================================
 
 model RoomType {
-  id                    String    @id @default(cuid())
-  code                  String    @unique // VD: "Deluxe", "Suite", "Standard"
-  name                  String    
-  description           String?
-  basePrice             Decimal   @db.Decimal(10, 2) 
-  maxGuests             Int       
-  thumbnailUrl          String
-  status                String?   @default("ACT") @db.VarChar(5)
-  createdOn             DateTime? @default(now()) @db.Timestamp(6)
-  createdBy             String?   @db.VarChar(100)
-  modifiedOn            DateTime? @db.Timestamp(6)
-  modifiedBy            String?   @db.VarChar(100)
-
-  rooms                 Room[]
-  amenities             RoomTypeAmenity[]
-  images                RoomTypeImage[]
-
+  id          String    @id @default(cuid())
+  code        String    @unique
+  name        String
+  description String?
+  status      String?   @default("ACT") @db.VarChar(5)
+  createdOn   DateTime? @default(now()) @db.Timestamp(6)
+  createdBy   String?   @db.VarChar(100)
+  modifiedOn  DateTime? @db.Timestamp(6)
+  modifiedBy  String?   @db.VarChar(100)
+  
+  rooms       Room[]
   @@map("room_types")
 }
 model Room {
-  id                    String     @id @default(cuid())
-  roomNumber            String     @unique 
-  floor                 Int        
-  roomTypeId            String
-  notes                 String?
-  status                RoomStatus @default(AVAILABLE)    
-  createdOn             DateTime?  @default(now()) @db.Timestamp(6)
-  createdBy             String?    @db.VarChar(100)
-  modifiedOn            DateTime?  @db.Timestamp(6)
-  modifiedBy            String?    @db.VarChar(100)
+  id              String     @id @default(cuid())
+  roomNumber      String     @unique
+  roomTypeId      String
+  roomName        String
+  floor           Int
+  size            Float?     // m²
+  bedType         String?    // "Single" | "Double" | "King"
+  view            String?    // "Sea" | "Garden" | "City" | "Pool"
+  balcony         Boolean    @default(false)
+  notes           String?
+  description     String?
+  basePrice       Decimal    @db.Decimal(10, 2)
+  maxGuests       Int        @default(2)
+  thumbnailUrl    String?
+  rating          Decimal?   @db.Decimal(2, 1)
+  status          RoomStatus @default(AVAILABLE)
+  createdOn       DateTime?  @default(now()) @db.Timestamp(6)
+  createdBy       String?    @db.VarChar(100)
+  modifiedOn      DateTime?  @db.Timestamp(6)
+  modifiedBy      String?    @db.VarChar(100)
 
-  roomType              RoomType   @relation(fields: [roomTypeId], references: [id])
-  bookings              Booking[]
+  roomType        RoomType   @relation(fields: [roomTypeId], references: [id])
+  images          RoomImage[]
+  amenities       RoomAmenity[] 
+  bookings        Booking[]
   @@map("rooms")
 }
-model RoomTypeImage {
-  id             String     @id @default(cuid())
-  roomTypeId     String
-  imageUrls      String
-  displayOrder   Int        @default(0)  //Thứ tự hiển thị
-  createdOn      DateTime?  @default(now()) @db.Timestamp(6)
+model RoomImage {
+  id           String    @id @default(cuid())
+  roomId       String
+  imageUrl     String
+  displayOrder Int       @default(0)
 
-  roomType RoomType @relation(fields: [roomTypeId], references: [id])
-
-  @@map("room_type_images")
+  createdOn    DateTime? @default(now()) @db.Timestamp(6)
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  @@map("room_images")
 }
 enum RoomStatus {
   AVAILABLE    // Phòng trống
@@ -117,23 +141,30 @@ enum RoomStatus {
   RESERVED     // Đã đặt trước
 }
 model Amenity {
-  id        String @id @default(cuid())
-  name      String @unique
-  status    String @default("ACT") @db.VarChar(5)
+  id          String @id @default(cuid())
+  name        String @unique
+  icon        String?
+  description String?
+  status      String @default("ACT") @db.VarChar(5)
 
-  roomTypes RoomTypeAmenity[]
+  createdOn   DateTime? @default(now()) @db.Timestamp(6)
+  createdBy   String?   @db.VarChar(100)
+  modifiedOn  DateTime? @db.Timestamp(6)
+  modifiedBy  String?   @db.VarChar(100)
+
+  rooms       RoomAmenity[]
 
   @@map("amenities")
 }
-model RoomTypeAmenity {
-  roomTypeId  String
+model RoomAmenity {
+  roomId      String
   amenityId   String
 
-  roomType    RoomType @relation(fields: [roomTypeId], references: [id])
-  amenity     Amenity  @relation(fields: [amenityId], references: [id])
+  room        Room    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  amenity     Amenity @relation(fields: [amenityId], references: [id])
 
-  @@id([roomTypeId, amenityId])
-  @@map("room_type_amenities")
+  @@id([roomId, amenityId])
+  @@map("room_amenities")
 }
 
 // ============================================
@@ -178,7 +209,8 @@ model Booking {
   actualCheckInDate    DateTime?  
   actualCheckOutDate   DateTime?
   numberOfGuests       Int
-  roomPrice            Decimal       @db.Decimal(10,2)
+  pricePerNight        Decimal       @db.Decimal(10,2)
+  totalNights          Int      
   totalService         Decimal       @default(0) @db.Decimal(10,2)
   discount             Decimal       @default(0) @db.Decimal(10,2)
   totalAmount          Decimal       @db.Decimal(10, 2)

@@ -6,4 +6,9 @@ export const ROOM_STATUS = {
   RESERVED: "RSV",
 } as const;
 
+export const ROOM_TYPE_CODE = {
+  VIP: "VIP",
+  STANDARD: "STD",
+} as const;
+
 export type RoomStatusCode = (typeof ROOM_STATUS)[keyof typeof ROOM_STATUS];
