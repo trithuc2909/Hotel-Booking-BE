@@ -4,7 +4,7 @@ export type AmenityResponse = {
   icon: string | null;
 }
 
-export type FeaturedRoomResponse = {
+export type RoomResponse = {
   id: string;
   roomTypeId: string;
   roomTypeName: string;
@@ -18,4 +18,12 @@ export type FeaturedRoomResponse = {
   rating: number | null;
   status: string;
   amenities: AmenityResponse[];
+}
+
+export type RoomsFilter = {
+  roomTypeCode?: string;
+  checkIn?: string;
+  checkOut?: string;
+  guests?: number;
+  limit?: number;
 }

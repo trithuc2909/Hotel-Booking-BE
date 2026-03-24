@@ -1,7 +1,7 @@
 import dotenv from "dotenv";
 import config from "./config";
 import express, { Application, Request, Response } from "express";
-import testRoutes from "./api/test.routes";
+import testRoutes from "./api/test.route";
 import apiRoutes from "./api";
 import cors from "cors";
 import cookieParser from "cookie-parser";
