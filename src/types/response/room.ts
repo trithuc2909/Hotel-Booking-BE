@@ -20,10 +20,23 @@ export type RoomResponse = {
   amenities: AmenityResponse[];
 }
 
+export type FindAllRoomsResponse = {
+  data: RoomResponse[];
+  total: number;
+  pageNum: number;
+  pageSize: number;
+};
+
 export type RoomsFilter = {
   roomTypeCode?: string;
   checkIn?: string;
   checkOut?: string;
   guests?: number;
   limit?: number;
+  minPrice?: number;
+  maxPrice?: number;
+  pageNum?: number;
+  pageSize?: number;
+  sortBy?: string;
+  sortDirection?: "asc" | "desc";
 }

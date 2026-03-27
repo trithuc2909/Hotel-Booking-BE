@@ -10,23 +10,15 @@ export const getAllRooms = catchAsyncErrorWithCode(
       locations: ["query"],
     });
 
-    const rooms = await roomService.getAllRooms(
-      {
-        roomTypeCode: data.roomTypeCode,
-        guests: data.guests,
-        limit: data.limit,
-        checkIn: data.checkIn,
-        checkOut: data.checkOut,
-      },
-      data.sortBy,
-      data.sortDirection,
-    );
+    const result = await roomService.getAllRooms(data);
 
     res.json(
-      ResponseHelper.success(
-        rooms,
+      ResponseHelper.paginated(
+        result.data,
+        result.total,
+        result.pageNum,
+        result.pageSize,
         "Lấy danh sách phòng thành công",
-        "GET_ROOMS_SUCCESS",
       ),
     );
   },

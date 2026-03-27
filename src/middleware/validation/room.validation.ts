@@ -26,6 +26,16 @@ export const getRoomsValidation: ValidationChain[] = [
     .optional()
     .isDate({ format: "YYYY-MM-DD" })
     .withMessage("checkOut phải đúng định dạng YYYY-MM-DD"),
+  query("minPrice")
+    .optional()
+    .isNumeric()
+    .withMessage("minPrice phải là số")
+    .toFloat(),
+  query("maxPrice")
+    .optional()
+    .isNumeric()
+    .withMessage("maxPrice phải là số")
+    .toFloat(),
   query("sortBy")
     .optional()
     .isIn(["basePrice", "rating", "roomName", "createdOn"])
@@ -36,4 +46,14 @@ export const getRoomsValidation: ValidationChain[] = [
     .optional()
     .isIn(["asc", "desc"])
     .withMessage("sortDirection phải là asc hoặc desc"),
+  query("pageNum")
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage("pageNum phải là số nguyên >= 1")
+    .toInt(),
+  query("pageSize")
+    .optional()
+    .isInt({ min: 1, max: 50 })
+    .withMessage("pageSize phải là số nguyên từ 1-50")
+    .toInt(),
 ];

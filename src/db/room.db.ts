@@ -1,12 +1,12 @@
 import { Prisma } from "@prisma/client";
 import { STATUS } from "../constant/status.constant";
-import { RoomResponse, RoomsFilter } from "../types/response/room";
+import { FindAllRoomsResponse, RoomResponse, RoomsFilter } from "../types/response/room";
 import prisma from "./prisma";
 
 const SORT_COLUMNS_MAP: Record<string, Prisma.Sql> = {
   basePrice: Prisma.sql`r."basePrice"`,
-  rating: Prisma.sql`r."rating"`,
-  roomName: Prisma.sql`r."roomName"`,
+  rating:    Prisma.sql`r."rating"`,
+  roomName:  Prisma.sql`r."roomName"`,
   createdOn: Prisma.sql`r."createdOn"`,
 };
 
@@ -21,48 +21,35 @@ const buildWhereClause = (filter: RoomsFilter): Prisma.Sql => {
     conditions.push(Prisma.sql`r."maxGuests" >= ${filter.guests}`);
   }
 
-  // TODO: Bật lại khi có bảng bookings
-  // if (filter.checkIn && filter.checkOut) {
-  //   conditions.push(Prisma.sql`
-  //     NOT EXISTS (
-  //       SELECT 1
-  //       FROM bookings b
-  //       WHERE b."roomId" = r.id
-  //         AND b."checkIn" < ${filter.checkOut}
-  //         AND b."checkOut" > ${filter.checkIn}
-  //     )
-  //   `);
-  // }
+  if (filter.minPrice !== undefined) {
+    conditions.push(Prisma.sql`r."basePrice" >= ${filter.minPrice}`);
+  }
+
+  if (filter.maxPrice !== undefined) {
+    conditions.push(Prisma.sql`r."basePrice" <= ${filter.maxPrice}`);
+  }
 
   return conditions.length > 0
     ? Prisma.sql`WHERE ${Prisma.join(conditions, " AND ")}`
     : Prisma.empty;
 };
 
-const buildLimitClause = (limit?: number): Prisma.Sql => {
-  if (limit === undefined) return Prisma.empty;
-  return Prisma.sql`LIMIT ${limit}`;
-};
-
 export const findAllRooms = async (
-  filter: RoomsFilter = {},
-  sortBy: string = "createdOn",
-  sortDirection: "asc" | "desc" = "asc",
-): Promise<RoomResponse[]> => {
-  const whereClause = buildWhereClause(filter);
-  const limitClause = buildLimitClause(filter.limit);
+  filter: RoomsFilter,
+): Promise<FindAllRoomsResponse> => {
+  const { pageNum, pageSize, sortBy, sortDirection } = filter;
+  const offset = (pageNum! - 1) * pageSize!;
 
-  const safeSortBy = SORT_COLUMNS_MAP[sortBy] ?? Prisma.sql`r."createdOn"`;
+  const whereClause       = buildWhereClause(filter);
+  const safeSortBy        = SORT_COLUMNS_MAP[sortBy!] ?? Prisma.sql`r."createdOn"`;
+  const safeSortDirection = sortDirection === "desc" ? Prisma.sql`DESC` : Prisma.sql`ASC`;
 
-  const safeSortDirection =
-    sortDirection === "desc" ? Prisma.sql`DESC` : Prisma.sql`ASC`;
-
-  return prisma.$queryRaw<RoomResponse[]>`
+  const dataQuery = prisma.$queryRaw<RoomResponse[]>`
     SELECT
       r.id,
-      rt.id                         AS "roomTypeId",
-      rt.name                       AS "roomTypeName",
-      rt.code                       AS "roomTypeCode",
+      rt.id         AS "roomTypeId",
+      rt.name       AS "roomTypeName",
+      rt.code       AS "roomTypeCode",
       r."roomNumber",
       r."roomName",
       r.notes,
@@ -73,29 +60,35 @@ export const findAllRooms = async (
       r."rating",
       COALESCE(
         JSON_AGG(
-          JSON_BUILD_OBJECT(
-            'id',   a.id,
-            'name', a.name,
-            'icon', a.icon
-          )
+          JSON_BUILD_OBJECT('id', a.id, 'name', a.name, 'icon', a.icon)
         ) FILTER (WHERE a.id IS NOT NULL),
         '[]'::json
       ) AS "amenities"
     FROM rooms r
-    INNER JOIN room_types rt
-      ON r."roomTypeId" = rt.id
-    LEFT JOIN room_amenities ra
-      ON ra."roomId" = r.id
+    INNER JOIN room_types rt ON r."roomTypeId" = rt.id
+    LEFT JOIN room_amenities ra ON ra."roomId" = r.id
     LEFT JOIN amenities a
       ON a.id = ra."amenityId"
       AND a.status = ${STATUS.ACTIVE}
     ${whereClause}
-    GROUP BY
-      r.id,
-      rt.id,
-      rt.name,
-      rt.code
+    GROUP BY r.id, rt.id, rt.name, rt.code
     ORDER BY ${safeSortBy} ${safeSortDirection}
-    ${limitClause}
+    LIMIT ${pageSize} OFFSET ${offset}
   `;
+
+  const countQuery = prisma.$queryRaw<{ count: bigint }[]>`
+    SELECT COUNT(DISTINCT r.id) AS count
+    FROM rooms r
+    INNER JOIN room_types rt ON r."roomTypeId" = rt.id
+    LEFT JOIN room_amenities ra ON ra."roomId" = r.id
+    LEFT JOIN amenities a
+      ON a.id = ra."amenityId"
+      AND a.status = ${STATUS.ACTIVE}
+    ${whereClause}
+  `;
+
+  const [data, countResult] = await Promise.all([dataQuery, countQuery]);
+  const total = Number(countResult[0]?.count ?? 0);
+
+  return { data, total, pageNum: pageNum!, pageSize: pageSize! };
 };

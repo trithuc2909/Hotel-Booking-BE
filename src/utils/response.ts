@@ -37,6 +37,8 @@ export class ResponseHelper {
     pageSize: number,
     message: string = "Success",
   ) {
+    const safePageSize = pageSize > 0 ? pageSize : 1;
+    const totalPages = Math.ceil(total / safePageSize);
     return {
       succeeded: true,
       message,
@@ -45,8 +47,12 @@ export class ResponseHelper {
       meta: {
         total,
         pageNum,
-        pageSize,
-        totalPages: Math.ceil(total / pageSize),
+        pageSize: safePageSize,
+        totalPages,
+        hasNext: pageNum < totalPages,
+        hasPrev: pageNum > 1,
+        nextPage: pageNum < totalPages ? pageNum + 1 : null,
+        prevPage: pageNum > 1 ? pageNum - 1 : null,
       },
       errors: null,
     };
