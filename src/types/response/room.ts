@@ -39,4 +39,6 @@ export type RoomsFilter = {
   pageSize?: number;
   sortBy?: string;
   sortDirection?: "asc" | "desc";
+  status?: string;
+  search?: string;
 }

@@ -1,6 +1,7 @@
 import { RoomResponse, RoomsFilter } from "../types/response/room";
 import * as roomDb from "../db/room.db";
 import AppError from "../utils/appError";
+import { ROOM_STATUS } from "../constant/room.constant";
 
 const ALLOWED_SORT = ["basePrice", "rating", "roomName", "createdOn"];
 
@@ -45,8 +46,34 @@ export const getAllRooms = async (
     ? filter.sortBy
     : "createdOn";
 
-  const sortDirection =
-    filter.sortDirection === "desc" ? "desc" : "asc";
+  const sortDirection = filter.sortDirection === "desc" ? "desc" : "asc";
+
+  return roomDb.findAllRooms({
+    ...filter,
+    pageNum,
+    pageSize,
+    sortBy,
+    sortDirection,
+    status: filter.status ?? ROOM_STATUS.AVAILABLE,
+  });
+};
+
+export const getRoomById = async (id: string): Promise<RoomResponse> => {
+  const room = await roomDb.findRoomById(id);
+
+  if (!room) throw AppError.notFound("Không tìm thấy phòng", "ROOM_NOT_FOUND");
+
+  return room;
+};
+
+export const getAdminRooms = async (filter: RoomsFilter) => {
+  const pageNum = Math.max(1, filter.pageNum ?? 1);
+  const pageSize = Math.min(100, Math.max(1, filter.pageSize ?? 9));
+
+  const sortBy = ALLOWED_SORT.includes(filter.sortBy!)
+    ? filter.sortBy
+    : "createdOn";
+  const sortDirection = filter.sortDirection === "desc" ? "desc" : "asc";
 
   return roomDb.findAllRooms({
     ...filter,

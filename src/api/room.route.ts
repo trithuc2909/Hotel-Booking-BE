@@ -1,8 +1,10 @@
 import { Router } from "express";
 import * as roomController from "../controllers/room.controller";
 import {
+  getAdminRoomsValidation,
   getRoomsValidation,
   handleValidationErrors,
+  validateId,
 } from "../middleware/validation";
 const router = Router();
 /**
@@ -16,5 +18,12 @@ router.get(
   handleValidationErrors,
   roomController.getAllRooms,
 );
+
+router.get(
+  "/:id",
+  validateId,
+  handleValidationErrors,
+  roomController.getRoomById,
+)
 
 export default router;

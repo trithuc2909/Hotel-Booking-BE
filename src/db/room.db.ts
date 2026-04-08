@@ -1,12 +1,17 @@
 import { Prisma } from "@prisma/client";
 import { STATUS } from "../constant/status.constant";
-import { FindAllRoomsResponse, RoomResponse, RoomsFilter } from "../types/response/room";
+import {
+  FindAllRoomsResponse,
+  RoomResponse,
+  RoomsFilter,
+} from "../types/response/room";
 import prisma from "./prisma";
+import { ROOM_STATUS } from "../constant/room.constant";
 
 const SORT_COLUMNS_MAP: Record<string, Prisma.Sql> = {
   basePrice: Prisma.sql`r."basePrice"`,
-  rating:    Prisma.sql`r."rating"`,
-  roomName:  Prisma.sql`r."roomName"`,
+  rating: Prisma.sql`r."rating"`,
+  roomName: Prisma.sql`r."roomName"`,
   createdOn: Prisma.sql`r."createdOn"`,
 };
 
@@ -29,6 +34,24 @@ const buildWhereClause = (filter: RoomsFilter): Prisma.Sql => {
     conditions.push(Prisma.sql`r."basePrice" <= ${filter.maxPrice}`);
   }
 
+  if (filter.status) {
+    conditions.push(Prisma.sql`r.status = ${filter.status}`);
+  }
+
+  if (filter.search?.trim()) {
+    const search = filter.search.trim().replace(/[%_]/g, "\\$&");
+    const keyword = `%${search}%`;
+
+    conditions.push(
+      Prisma.sql`
+      (
+        r."roomName" ILIKE ${keyword}
+        OR r."roomNumber" ILIKE ${keyword}
+      )
+    `,
+    );
+  }
+
   return conditions.length > 0
     ? Prisma.sql`WHERE ${Prisma.join(conditions, " AND ")}`
     : Prisma.empty;
@@ -40,9 +63,10 @@ export const findAllRooms = async (
   const { pageNum, pageSize, sortBy, sortDirection } = filter;
   const offset = (pageNum! - 1) * pageSize!;
 
-  const whereClause       = buildWhereClause(filter);
-  const safeSortBy        = SORT_COLUMNS_MAP[sortBy!] ?? Prisma.sql`r."createdOn"`;
-  const safeSortDirection = sortDirection === "desc" ? Prisma.sql`DESC` : Prisma.sql`ASC`;
+  const whereClause = buildWhereClause(filter);
+  const safeSortBy = SORT_COLUMNS_MAP[sortBy!] ?? Prisma.sql`r."createdOn"`;
+  const safeSortDirection =
+    sortDirection === "desc" ? Prisma.sql`DESC` : Prisma.sql`ASC`;
 
   const dataQuery = prisma.$queryRaw<RoomResponse[]>`
     SELECT
@@ -91,4 +115,59 @@ export const findAllRooms = async (
   const total = Number(countResult[0]?.count ?? 0);
 
   return { data, total, pageNum: pageNum!, pageSize: pageSize! };
+};
+
+export const findRoomById = async (
+  id: string,
+): Promise<RoomResponse | null> => {
+  const result = await prisma.$queryRaw<RoomResponse[]>`
+SELECT
+      r.id,
+      rt.id    AS "roomTypeId",
+      rt.name  AS "roomTypeName",
+      rt.code  AS "roomTypeCode",
+      r."roomNumber",
+      r."roomName",
+      r.notes,
+      r."basePrice",
+      r."maxGuests",
+      r."thumbnailUrl",
+      r.status,
+      r.rating,
+      COALESCE(
+        JSON_AGG(
+          JSON_BUILD_OBJECT(
+            'id', a.id,
+            'name', a.name,
+            'icon', a.icon
+          )
+          ORDER BY a.name
+        ) FILTER (WHERE a.id IS NOT NULL),
+        '[]'::json
+      ) AS "amenities"
+    FROM rooms r
+    INNER JOIN room_types rt ON r."roomTypeId" = rt.id
+    LEFT JOIN room_amenities ra ON ra."roomId" = r.id
+    LEFT JOIN amenities a
+      ON a.id = ra."amenityId"
+      AND a.status = ${STATUS.ACTIVE}
+    WHERE r.id = ${id}
+      AND r.status = ${ROOM_STATUS.AVAILABLE}
+    GROUP BY 
+      r.id,
+      rt.id,
+      rt.name,
+      rt.code,
+      r."roomNumber",
+      r."roomName",
+      r.notes,
+      r."basePrice",
+      r."maxGuests",
+      r."thumbnailUrl",
+      r.status,
+      r.rating
+    LIMIT 1
+  `;
+
+  return result[0] ?? null;
 };

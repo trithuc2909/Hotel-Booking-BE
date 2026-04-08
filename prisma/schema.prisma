@@ -111,7 +111,7 @@ model Room {
   maxGuests       Int        @default(2)
   thumbnailUrl    String?
   rating          Decimal?   @db.Decimal(2, 1)
-  status          RoomStatus @default(AVAILABLE)
+  status          String     @default("AVL") @db.VarChar(5)
   createdOn       DateTime?  @default(now()) @db.Timestamp(6)
   createdBy       String?    @db.VarChar(100)
   modifiedOn      DateTime?  @db.Timestamp(6)
@@ -132,13 +132,6 @@ model RoomImage {
   createdOn    DateTime? @default(now()) @db.Timestamp(6)
   room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
   @@map("room_images")
-}
-enum RoomStatus {
-  AVAILABLE    // Phòng trống
-  OCCUPIED     // Đang có khách
-  CLEANING     // Đang dọn dẹp
-  MAINTENANCE  // Đang bảo trì
-  RESERVED     // Đã đặt trước
 }
 model Amenity {
   id          String @id @default(cuid())

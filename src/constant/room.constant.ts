@@ -1,6 +1,6 @@
 export const ROOM_STATUS = {
   AVAILABLE: "AVL",
-  OCCUPIED: "OCP", // Đang có khách
+  OCCUPIED: "OCP",
   CLEANING: "CLN",
   MAINTENANCE: "MNT",
   RESERVED: "RSV",
