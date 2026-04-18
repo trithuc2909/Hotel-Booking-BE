@@ -34,6 +34,11 @@ export const uploadSingleImage = upload.single("image");
 export const uploadMultipleImages = upload.array("images", 10);
 
 export const uploadHotelImages = upload.fields([
-  { name: "thumbnail", maxCount: 1 },
-  { name: "images", maxCount: 9 },
+  { name: "thumbnailUrl", maxCount: 1 },
+  { name: "imageUrls", maxCount: 9 },
+]);
+
+export const uploadRoomImages = upload.fields([
+  { name: "thumbnailUrl", maxCount: 1 },
+  { name: "imageUrls", maxCount: 4 },
 ]);

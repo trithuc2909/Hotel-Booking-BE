@@ -3,14 +3,13 @@ import AppError from "../utils/appError";
 import logger from "../config/logger.config";
 import config from "../config";
 
-// Bắt tất cả lỗi trong ứng dụng và trả về response nhất quán
 export const errorHandler = (
   err: Error | AppError,
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
-  // If is AppError (Lỗi tự tạo)
+  // If is AppError
   if (err instanceof AppError) {
     logger.error(`[AppError] ${err.message}`, {
       statusCode: err.statusCode,
@@ -27,11 +26,11 @@ export const errorHandler = (
     });
   }
 
-  // Xử lý lỗi từ Prisma ORM
+  // Handle Prisma Error
   const handlePrismaError = (err: any, res: Response) => {
     logger.error(`[PrismaError] ${err.code}: ${err.message}`);
 
-    // P2002: Unique constraint violation (trùng email, username...)
+    // P2002: Unique constraint violation
     if (err.code === "P2002") {
       const field = err.meta?.target?.[0] || "field";
       return res.status(409).json({
@@ -58,7 +57,7 @@ export const errorHandler = (
     });
   };
 
-  // Xử lý lỗi validation (express-validator)
+  // Handle Validation Error
   const handleValidationError = (err: any, res: Response) => {
     logger.error(`[ValidationError] ${err.message}`);
     return res.status(400).json({
@@ -74,23 +73,43 @@ export const errorHandler = (
     return handlePrismaError(err, res);
   }
 
-    // Xử lý lỗi validation
-  if (err.name === 'ValidationError') {
+  // Validation Error
+  if (err.name === "ValidationError") {
     return handleValidationError(err, res);
   }
+
+  // Validation Upload Error
+  if (err.name === "MulterError") {
+    return res.status(400).json({
+      success: false,
+      message: err.message,
+      code: "UPLOAD_ERROR",
+    });
+  }
+
+  logger.error(`[UnhandledError] ${err.message || err}`, {
+    name: err.name,
+    path: req.path,
+    method: req.method,
+  });
+  return res.status(500).json({
+    success: false,
+    message: err.message || "Đã xảy ra lỗi không mong muốn",
+    code: "INTERNAL_SERVER_ERROR",
+  });
 };
 
-// Middleware bắt route không tồn tại (404)
+// Middleware not found (404)
 export const notFoundHandler = (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   const error = new AppError(
     `Route ${req.originalUrl} not found`,
     404,
     true,
-    "ROUTE_NOT_FOUND"
+    "ROUTE_NOT_FOUND",
   );
   next(error);
 };

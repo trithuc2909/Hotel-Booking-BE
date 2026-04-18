@@ -2,7 +2,7 @@ export type AmenityResponse = {
   id: string;
   name: string;
   icon: string | null;
-}
+};
 
 export type RoomResponse = {
   id: string;
@@ -17,8 +17,9 @@ export type RoomResponse = {
   thumbnailUrl: string;
   rating: number | null;
   status: string;
+  statusLabel: string | null;
   amenities: AmenityResponse[];
-}
+};
 
 export type FindAllRoomsResponse = {
   data: RoomResponse[];
@@ -41,4 +42,27 @@ export type RoomsFilter = {
   sortDirection?: "asc" | "desc";
   status?: string;
   search?: string;
-}
+};
+
+export type RoomDetailResponse = {
+  id: string;
+  roomTypeId: string;
+  roomTypeName: string;
+  roomTypeCode: string;
+  roomNumber: string;
+  roomName: string;
+  floor: number;
+  size: number | null;
+  bedType: string | null;
+  view: string | null;
+  balcony: boolean;
+  notes: string | null;
+  description: string | null;
+  basePrice: number;
+  maxGuests: number;
+  thumbnailUrl: string | null;
+  rating: number | null;
+  status: string;
+  amenities: { id: string; name: string; icon: string | null }[];
+  images: { id: string; imageUrl: string; displayOrder: number }[];
+};

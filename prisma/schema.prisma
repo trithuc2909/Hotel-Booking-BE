@@ -112,6 +112,7 @@ model Room {
   thumbnailUrl    String?
   rating          Decimal?   @db.Decimal(2, 1)
   status          String     @default("AVL") @db.VarChar(5)
+  isDeleted       Boolean    @default(false)
   createdOn       DateTime?  @default(now()) @db.Timestamp(6)
   createdBy       String?    @db.VarChar(100)
   modifiedOn      DateTime?  @db.Timestamp(6)

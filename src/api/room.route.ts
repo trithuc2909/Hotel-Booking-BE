@@ -1,7 +1,6 @@
 import { Router } from "express";
 import * as roomController from "../controllers/room.controller";
 import {
-  getAdminRoomsValidation,
   getRoomsValidation,
   handleValidationErrors,
   validateId,

@@ -1,9 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
-import {
-  ensureBucket,
-  getPublicUrl,
-  minioClient,
-} from "../config/minio.config";
+import { getPublicUrl, minioClient } from "../config/minio.config";
 import {
   MIME_EXTENSION_MAP,
   MINIO_BUCKET,
@@ -11,26 +7,43 @@ import {
 } from "../constant/minio.constant";
 import { UploadFileOptions, UploadResult } from "../types/response/minio";
 import logger from "../config/logger.config";
-import { error, log } from "node:console";
 
 function getExtensionFromMime(mime: string): string {
   return MIME_EXTENSION_MAP[mime] || "jpg";
 }
 
 class MinioService {
+  private extractKeyFromUrl(url: string): string | null {
+    try {
+      const { pathname } = new URL(url);
+
+      const parts = pathname.split("/").filter(Boolean);
+
+      if (parts.length < 2) return null;
+
+      const [bucket, ...keyParts] = parts;
+
+      if (bucket !== MINIO_BUCKET.IMAGES) return null;
+
+      return keyParts.join("/");
+    } catch (error) {
+      logger.error("Url không hợp lệ khi truy xuất khóa", { url, error });
+      return null;
+    }
+  }
+
   async uploadFile(options: UploadFileOptions): Promise<UploadResult> {
     const { bucketName, file, folder = "", customFileName } = options;
 
-    // Create fileName
     const extension = getExtensionFromMime(file.mimetype);
     const fileName = customFileName ?? `${uuidv4()}.${extension}`;
 
     const filePath = folder ? `${folder}/${fileName}` : fileName;
 
-    // Upload file buffer
     await minioClient.putObject(bucketName, filePath, file.buffer, file.size, {
       "Content-Type": file.mimetype,
       "Original-Name": file.originalname,
+      "Cache-Control": "no-cache",
     });
 
     return {
@@ -183,6 +196,110 @@ class MinioService {
       folder,
       customFileName,
     });
+  }
+
+  async uploadRoomImages(
+    roomId: string,
+    thumbnail: Express.Multer.File | undefined,
+    images: Express.Multer.File[],
+  ): Promise<{ thumbnailUrl?: string; imageUrls: string[] }> {
+    const hasThumb = !!thumbnail && thumbnail.size > 0;
+    const validImgs = images.filter(
+      (f) => f && f.size > 0 && f.buffer?.length > 0,
+    );
+
+    if (!hasThumb && validImgs.length === 0) {
+      return { thumbnailUrl: undefined, imageUrls: [] };
+    }
+
+    const uploadTasks: Promise<UploadResult>[] = [];
+
+    if (hasThumb) {
+      uploadTasks.push(this.uploadRoomImage(roomId, thumbnail!, true));
+    }
+
+    validImgs.forEach((file, index) => {
+      uploadTasks.push(this.uploadRoomImage(roomId, file, false, index + 1));
+    });
+
+    const results = await Promise.all(uploadTasks);
+
+    let thumbnailUrl: string | undefined;
+    const imageUrls: string[] = [];
+
+    results.forEach((result, i) => {
+      if (hasThumb && i === 0) thumbnailUrl = result.url;
+      else imageUrls.push(result.url);
+    });
+
+    return { thumbnailUrl, imageUrls };
+  }
+
+  async deleteRoomImages(params: {
+    thumbnailUrl?: string | null;
+    imageUrls: string[];
+  }) {
+    const deleteTasks: Promise<void>[] = [];
+
+    // delete thumbnail
+    if (params.thumbnailUrl) {
+      const key = this.extractKeyFromUrl(params.thumbnailUrl);
+
+      if (key) {
+        deleteTasks.push(
+          this.deleteFile(MINIO_BUCKET.IMAGES, key).catch((err) => {
+            logger.error(`Xóa ảnh chính thất bại: ${key}`, err);
+          }),
+        );
+      }
+    }
+
+    // delete images
+    for (const url of params.imageUrls ?? []) {
+      const key = this.extractKeyFromUrl(url);
+
+      if (key) {
+        deleteTasks.push(
+          this.deleteFile(MINIO_BUCKET.IMAGES, key).catch((err) => {
+            logger.error(`Failed to delete room image: ${key}`, err);
+          }),
+        );
+      }
+    }
+
+    if (deleteTasks.length === 0) return;
+
+    await Promise.all(deleteTasks);
+  }
+
+  async deleteRoomFolder(roomId: string): Promise<void> {
+    const prefix = `${MINIO_FOLDERS.ROOM}/${roomId}/`;
+
+    const objectKeys: string[] = await new Promise((resolve, reject) => {
+      const keys: string[] = [];
+
+      const stream = minioClient.listObjects(MINIO_BUCKET.IMAGES, prefix, true);
+
+      stream.on("data", (obj) => {
+        if (obj.name) keys.push(obj.name);
+      });
+
+      stream.on("end", () => resolve(keys));
+      stream.on("error", (err) => {
+        logger.error("Lỗi khi liệt kê các đối tượng cần xóa", err);
+        reject(err);
+      });
+    });
+
+    if (objectKeys.length === 0) return;
+
+    await Promise.all(
+      objectKeys.map((key) =>
+        this.deleteFile(MINIO_BUCKET.IMAGES, key).catch((err) => {
+          logger.error(`Lỗi khi xóa phòng: ${key}`, err);
+        }),
+      ),
+    );
   }
 }
 

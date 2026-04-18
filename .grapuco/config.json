@@ -1,0 +1,22 @@
+{
+  "repoId": "d881fff8-a3ce-4a32-9b0f-67ec10a2c3dc",
+  "repoName": "hotel-booking-api",
+  "server": "https://api.grapuco.com",
+  "language": "typescript",
+  "features": {
+    "embeddings": true,
+    "dataFlowAnalysis": true
+  },
+  "ignore": [
+    "node_modules",
+    "dist",
+    ".next",
+    ".git",
+    ".grapuco",
+    "__pycache__",
+    "vendor",
+    "target",
+    "build"
+  ],
+  "lastPush": "2026-04-17T04:41:35.142Z"
+}

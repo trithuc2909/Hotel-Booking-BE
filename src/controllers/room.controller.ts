@@ -3,6 +3,7 @@ import { ResponseHelper } from "../utils/response";
 import * as roomService from "../services/room.service";
 import { catchAsyncErrorWithCode } from "../utils/catchAsyncError";
 import { matchedData } from "express-validator";
+import { CreateRoomRequest, MulterFiles, UpdateRoomRequest } from "../types/request/room";
 
 export const getAllRooms = catchAsyncErrorWithCode(
   async (req: Request, res: Response) => {
@@ -54,4 +55,59 @@ export const getRoomById = catchAsyncErrorWithCode(
     res.json(ResponseHelper.success(room, "Lấy thông tin phòng thành công"));
   },
   "GET_ROOM_BY_ID_ERROR",
+);
+
+export const updateRoomStatus = catchAsyncErrorWithCode(
+  async (req: Request, res: Response) => {
+    const id = req.params.id as string;
+    const { status } = req.body;
+
+    await roomService.updateRoomStatus({ id, status });
+
+    res.json(
+      ResponseHelper.success(null, "Cập nhật trạng thái phòng thành công"),
+    );
+  },
+  "UPDATE_ROOM_STATUS_ERROR",
+);
+
+export const deleteRoomById = catchAsyncErrorWithCode(
+  async (req: Request, res: Response) => {
+    const id = req.params.id as string;
+
+    await roomService.deleteRoomById(id);
+
+    res.json(ResponseHelper.success(null, "Xóa phòng thành công"));
+  },
+  "DELETE_ROOM_ERROR",
+);
+
+export const createRoom = catchAsyncErrorWithCode(
+  async (req: Request, res: Response) => {
+    const body = matchedData(req, { locations: ["body"] }) as CreateRoomRequest;
+    const files = req.files as MulterFiles;
+    await roomService.createRoom(body, files);
+    res.status(201).json(ResponseHelper.success(null, "Tạo phòng thành công"));
+  },
+  "CREATE_ROOM_ERROR",
+);
+
+export const getAdminRoomById = catchAsyncErrorWithCode(
+  async (req: Request, res: Response) => {
+    const id = req.params.id as string;
+    const room = await roomService.getAdminRoomById(id);
+    res.json(ResponseHelper.success(room, "Lấy thông tin phòng thành công"));
+  },
+  "GET_ADMIN_ROOM_BY_ID_ERROR",
+);
+
+export const updateRoom = catchAsyncErrorWithCode(
+  async (req: Request, res: Response) => {
+    const id = req.params.id as string;
+    const body = matchedData(req, { locations: ["body"] }) as UpdateRoomRequest;
+    const files = req.files as MulterFiles;
+    await roomService.updateRoom(id, body, files);
+    res.json(ResponseHelper.success(null, "Cập nhật phòng thành công"));
+  },
+  "UPDATE_ROOM_ERROR",
 );

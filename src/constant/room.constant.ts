@@ -2,7 +2,6 @@ export const ROOM_STATUS = {
   AVAILABLE: "AVL",
   OCCUPIED: "OCP",
   CLEANING: "CLN",
-  MAINTENANCE: "MNT",
   RESERVED: "RSV",
 } as const;
 

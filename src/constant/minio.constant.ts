@@ -3,9 +3,9 @@ export const MINIO_BUCKET = {
 } as const;
 
 export const MINIO_FOLDERS = {
-  USER: "User",
-  HOTEL: "Hotel",
-  ROOM: "Room",
+  USER: "users",
+  HOTEL: "hotels",
+  ROOM: "rooms",
 } as const;
 
 export const MIME_EXTENSION_MAP: Record<string, string> = {
