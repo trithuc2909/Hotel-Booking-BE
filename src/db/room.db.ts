@@ -132,8 +132,8 @@ export const findAllRooms = async (
 
 export const findRoomById = async (
   id: string,
-): Promise<RoomResponse | null> => {
-  const result = await prisma.$queryRaw<RoomResponse[]>`
+): Promise<RoomDetailResponse | null> => {
+  const result = await prisma.$queryRaw<RoomDetailResponse[]>`
 SELECT
       r.id,
       rt.id    AS "roomTypeId",
@@ -141,44 +141,52 @@ SELECT
       rt.code  AS "roomTypeCode",
       r."roomNumber",
       r."roomName",
+      r.floor,
+      r.size,
+      r."bedType",
+      r.view,
+      r.balcony,
       r.notes,
+      r.description,
       r."basePrice",
       r."maxGuests",
       r."thumbnailUrl",
       r.status,
       r.rating,
-      COALESCE(
-        JSON_AGG(
-          JSON_BUILD_OBJECT(
-            'id', a.id,
-            'name', a.name,
-            'icon', a.icon
-          )
-          ORDER BY a.name
-        ) FILTER (WHERE a.id IS NOT NULL),
-        '[]'::json
-      ) AS "amenities"
+      (
+        SELECT COALESCE(
+          JSON_AGG(
+            JSON_BUILD_OBJECT('id', a.id, 'name', a.name, 'icon', a.icon)
+            ORDER BY a.name
+          ),
+          '[]'::json
+        )
+        FROM room_amenities ra
+        JOIN amenities a
+          ON a.id = ra."amenityId"
+          AND a.status = ${STATUS.ACTIVE}
+        WHERE ra."roomId" = r.id
+      ) AS "amenities",
+      (
+        SELECT COALESCE(
+          JSON_AGG(
+            JSON_BUILD_OBJECT(
+              'id',           ri.id,
+              'imageUrl',     ri."imageUrl",
+              'displayOrder', ri."displayOrder"
+            )
+            ORDER BY ri."displayOrder"
+          ),
+          '[]'::json
+        )
+        FROM room_images ri
+        WHERE ri."roomId" = r.id
+      ) AS "imageUrls"
     FROM rooms r
     INNER JOIN room_types rt ON r."roomTypeId" = rt.id
-    LEFT JOIN room_amenities ra ON ra."roomId" = r.id
-    LEFT JOIN amenities a
-      ON a.id = ra."amenityId"
-      AND a.status = ${STATUS.ACTIVE}
     WHERE r.id = ${id}
+      AND r."isDeleted" = false
       AND r.status = ${ROOM_STATUS.AVAILABLE}
-    GROUP BY 
-      r.id,
-      rt.id,
-      rt.name,
-      rt.code,
-      r."roomNumber",
-      r."roomName",
-      r.notes,
-      r."basePrice",
-      r."maxGuests",
-      r."thumbnailUrl",
-      r.status,
-      r.rating
     LIMIT 1
   `;
 

@@ -87,7 +87,7 @@ const config = {
   },
 
   defaults: {
-    logoUrl: `${process.env.MINIO_PUBLIC_URL || "http://localhost:9000"}/images/defaults/logo-default.jpg`
+    logoUrl: `${process.env.MINIO_PUBLIC_URL || "http://localhost:9000"}/images/defaults/logo-default.png`
   }
 };
 

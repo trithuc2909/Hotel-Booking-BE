@@ -42,8 +42,7 @@ class MinioService {
 
     await minioClient.putObject(bucketName, filePath, file.buffer, file.size, {
       "Content-Type": file.mimetype,
-      "Original-Name": file.originalname,
-      "Cache-Control": "no-cache",
+      "Original-Name": encodeURIComponent(file.originalname),
     });
 
     return {

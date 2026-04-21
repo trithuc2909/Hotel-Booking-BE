@@ -71,7 +71,7 @@ export const getAllRooms = async (
   });
 };
 
-export const getRoomById = async (id: string): Promise<RoomResponse> => {
+export const getRoomById = async (id: string): Promise<RoomDetailResponse> => {
   const room = await roomDb.findRoomById(id);
 
   if (!room) throw AppError.notFound("Không tìm thấy phòng", "ROOM_NOT_FOUND");
