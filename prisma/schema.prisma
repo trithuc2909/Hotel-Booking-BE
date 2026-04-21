@@ -240,6 +240,7 @@ enum BookingStatus {
 model ServiceCategory {
   id        String  @id @default(cuid())
   name      String  @unique
+  icon      String?
   status    String  @default("ACT") @db.VarChar(5)
 
   services  Service[]
@@ -252,6 +253,7 @@ model Service {
   serviceCategoryId   String
   name                String     @unique // VD: "Giặt ủi", "Spa", "Ăn sáng"
   description         String?
+  imageUrl            String?
   basePrice           Decimal    @db.Decimal(10, 2)
   unit                String     // Đơn vị: "lần", "người", "món"
   status              String?    @default("ACT") @db.VarChar(5)
