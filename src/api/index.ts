@@ -5,6 +5,7 @@ import userRoutes from "./user.route";
 import adminRoutes from "./admin";
 import lookupRoutes from "./lookup.route";
 import serviceRoutes from "./service.route";
+import promotionRoutes from "./promotion.route";
 
 const router = Router();
 
@@ -14,5 +15,6 @@ router.use("/users", userRoutes);
 router.use("/admin", adminRoutes);
 router.use("/lookup", lookupRoutes);
 router.use("/services", serviceRoutes);
+router.use("/promotions", promotionRoutes);
 
 export default router;
