@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { STATUS, STATUS_TYPE } from "../constant/status.constant";
 import {
+  AvailableRoomResponse,
   FindAllRoomsResponse,
   RoomDetailResponse,
   RoomResponse,
@@ -9,11 +10,13 @@ import {
 import prisma from "./prisma";
 import { ROOM_STATUS } from "../constant/room.constant";
 import {
+  AvailableRoomsRequest,
   CreateRoomRequest,
   UpdateRoomRequest,
   UpdateRoomStatusRequest,
 } from "../types/request/room";
 import { ROLE_CONSTANTS } from "../constant/common.constant";
+import { BOOKING_STATUS } from "../constant/booking.constant";
 
 type PrismaTx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
 
@@ -374,4 +377,40 @@ export const updateRoomTx = async (
       },
     });
   }
+};
+
+export const findAvailableRooms = async (request: AvailableRoomsRequest) => {
+  const { checkInDate, checkOutDate, guests, excludeRoomId } = request;
+
+  const checkIn = new Date(checkInDate + "T00:00:00.000Z");
+  const checkOut = new Date(checkOutDate + "T00:00:00.000Z");
+
+  return prisma.$queryRaw<AvailableRoomResponse[]>`
+    SELECT
+      r.id,
+      r."roomName",
+      r."thumbnailUrl",
+      r."basePrice",
+      r."maxGuests",
+      r."bedType",
+      rt.id   AS "roomTypeId",
+      rt.name AS "roomTypeName"
+    FROM rooms r
+    INNER JOIN room_types rt ON r."roomTypeId" = rt.id
+    WHERE r."isDeleted" = false
+      AND r."maxGuests" >= ${guests}
+      ${excludeRoomId ? Prisma.sql`AND r.id != ${excludeRoomId}` : Prisma.empty}
+      AND NOT EXISTS (
+        SELECT 1 FROM bookings b
+        WHERE b."roomId" = r.id
+          AND b.status IN (
+            ${Prisma.raw(`'${BOOKING_STATUS.PENDING}'`)},
+            ${Prisma.raw(`'${BOOKING_STATUS.CONFIRMED}'`)}
+          )
+          AND b."checkInDate" < ${checkOut}
+          AND b."checkOutDate" > ${checkIn}
+      )
+    ORDER BY r."basePrice" ASC
+    LIMIT 10
+  `;
 };

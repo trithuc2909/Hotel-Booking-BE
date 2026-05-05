@@ -11,6 +11,7 @@ import {
   MulterFiles,
   UpdateRoomRequest,
   UpdateRoomStatusRequest,
+  AvailableRoomsRequest,
 } from "../types/request/room";
 import prisma from "../db/prisma";
 import { minioService } from "./minio.service";
@@ -302,4 +303,8 @@ export const getAdminRoomById = async (
   const room = await roomDb.findRoomByIdForAdmin(id);
   if (!room) throw AppError.notFound("Không tìm thấy phòng", "ROOM_NOT_FOUND");
   return room;
+};
+
+export const getAvailableRooms = async (request: AvailableRoomsRequest) => {
+  return roomDb.findAvailableRooms(request);
 };

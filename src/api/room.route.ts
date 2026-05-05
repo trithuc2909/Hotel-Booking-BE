@@ -18,6 +18,13 @@ router.get(
   roomController.getAllRooms,
 );
 
+/**
+ * @route  GET /api/v1/rooms/available
+ * @desc   Lấy phòng khả dụng theo ngày và số khách (dùng cho gợi ý thêm phòng)
+ * @access Public
+ */
+router.get("/available", roomController.getAvailableRooms);
+
 router.get(
   "/:id",
   validateId,

@@ -88,6 +88,15 @@ const config = {
 
   defaults: {
     logoUrl: `${process.env.MINIO_PUBLIC_URL || "http://localhost:9000"}/images/defaults/logo-default.png`
+  },
+
+  momo: {
+    partnerCode: process.env.MOMO_PARTNER_CODE || "MOMO",
+    accessKey: process.env.MOMO_ACCESS_KEY || "",
+    secretKey: process.env.MOMO_SECRET_KEY || "",
+    endpoint: process.env.MOMO_ENDPOINT || "https://test-payment.momo.vn/v2/gateway/api/create",
+    redirectUrl: process.env.MOMO_REDIRECT_URL || "http://localhost:3000/payment/result",
+    ipnUrl: process.env.MOMO_IPN_URL || ""
   }
 };
 

@@ -111,3 +111,19 @@ export const updateRoom = catchAsyncErrorWithCode(
   },
   "UPDATE_ROOM_ERROR",
 );
+
+export const getAvailableRooms = catchAsyncErrorWithCode(
+  async (req: Request, res: Response) => {
+    const { checkInDate, checkOutDate, guests, excludeRoomId } = req.query;
+
+    const result = await roomService.getAvailableRooms({
+      checkInDate: String(checkInDate),
+      checkOutDate: String(checkOutDate),
+      guests: Number(guests),
+      excludeRoomId: excludeRoomId ? String(excludeRoomId) : undefined,
+    });
+
+    res.json(ResponseHelper.success(result, "Lấy danh sách phòng khả dụng thành công"));
+  },
+  "GET_AVAILABLE_ROOMS_ERROR",
+);

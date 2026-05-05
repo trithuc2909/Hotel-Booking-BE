@@ -66,3 +66,14 @@ export type RoomDetailResponse = {
   amenities: { id: string; name: string; icon: string | null }[];
   images: { id: string; imageUrl: string; displayOrder: number }[];
 };
+
+export type AvailableRoomResponse = {
+  id: string;
+  roomName: string;
+  thumbnailUrl: string | null;
+  basePrice: number;
+  maxGuests: number;
+  bedType: string | null;
+  roomTypeId: string;
+  roomTypeName: string;
+};

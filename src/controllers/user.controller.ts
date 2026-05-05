@@ -18,3 +18,13 @@ export const getMe = catchAsyncErrorWithCode(
   },
   "GET_ME_ERROR",
 );
+
+export const updateUserProfile = catchAsyncErrorWithCode(
+  async (req: Request, res: Response) => {
+    const userId = req.user!.id;
+    const profile = await userService.updateUserProfile(userId, req.body);
+
+    res.json(ResponseHelper.success(profile, "Cập nhật hồ sơ thành công"));
+  },
+  "UPDATE_USER_PROFILE_ERROR",
+);

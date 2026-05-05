@@ -42,4 +42,11 @@ export type UpdateRoomRequest = {
   deleteImageIds?: string[];
 };
 
+export type AvailableRoomsRequest = {
+  checkInDate: string;
+  checkOutDate: string;
+  guests: number;
+  excludeRoomId?: string;
+}
+
 export type MulterFiles = { [fieldname: string]: Express.Multer.File[] };

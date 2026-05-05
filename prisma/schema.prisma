@@ -10,22 +10,24 @@ datasource db {
 
 // QUẢN LÝ NGƯỜI DÙNG & PHÂN QUYỀN
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  username      String    @unique
-  password      String    // Hashed password
-  role          UserRole  @default(USER)
-  status        String?   @default("INA") @db.VarChar(5)
-  createdOn     DateTime? @default(now()) @db.Timestamp(6)
-  createdBy     String?   @db.VarChar(100)
-  modifiedOn    DateTime? @db.Timestamp(6)
-  modifiedBy    String?   @db.VarChar(100)
+  id              String    @id @default(cuid())
+  email           String    @unique
+  username        String    @unique
+  password        String    // Hashed password
+  role            UserRole  @default(USER)
+  status          String?   @default("INA") @db.VarChar(5)
+  createdOn       DateTime? @default(now()) @db.Timestamp(6)
+  createdBy       String?   @db.VarChar(100)
+  modifiedOn      DateTime? @db.Timestamp(6)
+  modifiedBy      String?   @db.VarChar(100)
   
-  otps      OTP[]
-  bookings  Booking[]
-  payments  Payment[]
-  profile   UserProfile?  
-  promotionUsages   PromotionUsage[]
+  otps            OTP[]
+  bookings        Booking[]     @relation("UserBookings")
+  createdBookings Booking[]     @relation("BookingCreatedBy")
+  payments        Payment[]
+  profile         UserProfile?
+  customer        Customer?   
+  promotionUsages PromotionUsage[]
 
   @@map("users")
   @@index([email])
@@ -122,7 +124,8 @@ model Room {
   roomType        RoomType   @relation(fields: [roomTypeId], references: [id])
   images          RoomImage[]
   amenities       RoomAmenity[] 
-  bookings        Booking[]
+  bookingRooms    BookingRoom[]
+
   @@map("rooms")
 }
 model RoomImage {
@@ -173,20 +176,25 @@ enum CustomerType {
   REGULAR       // Khách quen
 }
 model Customer {
-  id                String        @id @default(cuid())
-  customerType      CustomerType  @default(INDIVIDUAL)
-  fullName          String
-  email             String?
-  phone             String        @unique
-  idCard            String?       @unique // CMND/CCCD
-  address           String?
-  nationality       String?       @default("Vietnam")
-  dateOfBirth       DateTime?
-  notes             String?
-  createdOn         DateTime?     @default(now()) @db.Timestamp(6)
-  modifiedOn        DateTime?     @db.Timestamp(6)
-  
-  bookings          Booking[]
+  id           String        @id @default(cuid())
+  userId       String?       @unique
+  customerType CustomerType  @default(INDIVIDUAL)
+  fullName     String
+  email        String?
+  phone        String
+  idCard       String?
+  address      String?
+  nationality  String?       @default("Vietnam")
+  dateOfBirth  DateTime?
+  notes        String?
+  createdOn    DateTime      @default(now())
+  modifiedOn   DateTime?     @db.Timestamp(6)
+
+  user         User?         @relation(fields: [userId], references: [id])
+  bookings     Booking[]
+
+  @@index([phone])
+  @@index([email])
   @@map("customers")
 }
 
@@ -198,13 +206,14 @@ model Booking {
   id                   String        @id @default(cuid())
   bookingCode          String        @unique // Mã đặt phòng: "BK-20260110001"
   customerId           String
-  roomId               String
   checkInDate          DateTime
   checkOutDate         DateTime
   actualCheckInDate    DateTime?  
   actualCheckOutDate   DateTime?
   numberOfGuests       Int
-  pricePerNight        Decimal       @db.Decimal(10,2)
+  userId               String?
+  taxAmount            Decimal       @default(0) @db.Decimal(10,2)
+  expiresAt            DateTime?
   totalNights          Int      
   totalService         Decimal       @default(0) @db.Decimal(10,2)
   discount             Decimal       @default(0) @db.Decimal(10,2)
@@ -223,20 +232,23 @@ model Booking {
   promotion            Promotion?    @relation(fields: [promotionId], references: [id])
 
   customer             Customer      @relation(fields: [customerId], references: [id])
-  room                 Room          @relation(fields: [roomId], references: [id])
-  createdBy            User?         @relation(fields: [createdById], references: [id])
+  createdBy            User?         @relation("BookingCreatedBy", fields: [createdById], references: [id])
   payments             Payment[]
   services             BookingService[]
+  user                 User?         @relation("UserBookings", fields: [userId], references: [id])
+  rooms                BookingRoom[]
 
   @@map("bookings")
 }
 enum BookingStatus {
-  PENDING      // Chờ xác nhận
-  CONFIRMED    // Đã xác nhận
-  CHECKED_IN   // Đã check-in
-  CHECKED_OUT  // Đã check-out
-  CANCELLED    // Đã hủy
-  NO_SHOW      // Không đến
+  PENDING          @map("PND")  // Chờ xác nhận
+  PENDING_PAYMENT  @map("PPY")  // Chờ thanh toán
+  CONFIRMED        @map("CFM")  // Đã xác nhận
+  CHECKED_IN       @map("CHK")  // Đã check-in
+  CHECKED_OUT      @map("CKO")  // Đã check-out
+  CANCELLED        @map("CAN")  // Đã hủy
+  NO_SHOW          @map("NSW")  // Không đến
+  EXPIRED          @map("EXP")  // Qúa hạn thanh toán
 }
 
 // ============================================
@@ -292,34 +304,59 @@ model BookingService {
   @@map("booking_services")
 }
 
+model BookingRoom {
+  id            String   @id @default(cuid())
+  bookingId     String
+  roomId        String
+  roomName      String
+  pricePerNight Decimal  @db.Decimal(10, 2)
+  nights        Int
+
+  booking       Booking  @relation(fields: [bookingId], references: [id])
+  room          Room     @relation(fields: [roomId], references: [id])
+  @@map("booking_rooms")
+}
 // ============================================
 // REGION: QUẢN LÝ THANH TOÁN
 // ============================================
 
 model Payment {
-  id              String        @id @default(cuid())
+  id              String         @id @default(cuid())
   bookingId       String
-  transactionId   String?
-  amount          Decimal       @db.Decimal(10, 2)
+  orderId         String         @unique  // BOOK_{bookingId}_{timestamp}
+  amount          Decimal        @db.Decimal(10, 2)
   paymentMethod   PaymentMethod
-  paymentDate     DateTime      @default(now())
+  paymentStatus   PaymentStatus  @default(PENDING)
+  payUrl          String?        // URL redirect sang MoMo
+  transactionId   String?        // MoMo trả về sau khi success
+  rawResponse     String?        // raw webhook JSON để audit
+  paidAt          DateTime?
   notes           String?
-  status          String?       @default("ACT") @db.VarChar(5)
-  createdOn       DateTime?     @default(now()) @db.Timestamp(6)
+  createdOn       DateTime?      @default(now()) @db.Timestamp(6)
   createdById     String?
-  modifiedOn      DateTime?     @db.Timestamp(6)
-  modifiedBy      String?       @db.VarChar(100)
+  modifiedOn      DateTime?      @db.Timestamp(6)
+  modifiedBy      String?        @db.VarChar(100)
 
-  booking         Booking       @relation(fields: [bookingId], references: [id])
+  booking         Booking        @relation(fields: [bookingId], references: [id])
   createdBy       User?          @relation(fields: [createdById], references: [id])
+
+  @@index([orderId])
   @@map("payments")
 }
+
 enum PaymentMethod {
-  CASH          // Tiền mặt
-  BANK_TRANSFER // Chuyển khoản
-  CREDIT_CARD   // Thẻ tín dụng
-  MOMO          // Ví MoMo
-  VNPAY         // VNPay
+  CASH
+  BANK_TRANSFER 
+  CREDIT_CARD  
+  MOMO
+  VNPAY
+}
+
+enum PaymentStatus {
+  PENDING    @map("PND")  // Chờ thanh toán
+  SUCCESS    @map("SCS")  // Thành công
+  FAILED     @map("FLD")  // Thất bại
+  REFUNDED   @map("RFD")  // Đã hoàn tiền
 }
 
 
