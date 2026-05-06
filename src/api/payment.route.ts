@@ -26,4 +26,14 @@ router.get(
   paymentController.getPaymentStatus,
 );
 
+router.post(
+  "/vnpay",
+  protect,
+  isUserOrAdmin,
+  initPaymentValidation,
+  handleValidationErrors,
+  paymentController.initVNPayPayment,
+);
+router.get("/vnpay/webhook", paymentController.vnpayWebhook);
+
 export default router;

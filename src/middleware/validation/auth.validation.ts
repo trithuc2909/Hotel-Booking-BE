@@ -39,11 +39,9 @@ export const signUpValidation: ValidationChain[] = [
     .matches(/[!@#$%^&*(),.?":{}|<>]/)
     .withMessage("Mật khẩu phải chứa ít nhất một ký tự đặc biệt")
     .custom((value, { req }) => {
-      // Không trùng email
       if (value.toLowerCase() === req.body.email?.toLowerCase()) {
         throw new Error("Mật khẩu không được trùng với email");
       }
-      // Không trùng username
       if (value.toLowerCase() === req.body.username?.toLowerCase()) {
         throw new Error("Mật khẩu không được trùng với tên đăng nhập");
       }
@@ -148,6 +146,38 @@ export const resetPasswordValidation: ValidationChain[] = [
     .matches(/[!@#$%^&*(),.?":{}|<>]/)
     .withMessage("Mật khẩu phải chứa ít nhất một ký tự đặc biệt"),
 
+  body("confirmPassword")
+    .trim()
+    .notEmpty()
+    .withMessage("Xác nhận mật khẩu không được để trống")
+    .bail()
+    .custom((value, { req }) => {
+      if (value !== req.body.newPassword) {
+        throw new Error("Mật khẩu xác nhận không khớp");
+      }
+      return true;
+    }),
+];
+export const changePasswordValidation: ValidationChain[] = [
+  body("oldPassword")
+    .trim()
+    .notEmpty()
+    .withMessage("Mật khẩu cũ không được để trống"),
+  body("newPassword")
+    .trim()
+    .notEmpty()
+    .withMessage("Mật khẩu mới không được để trống")
+    .bail()
+    .isLength({ min: 8 })
+    .withMessage("Mật khẩu phải có ít nhất 8 ký tự")
+    .matches(/[A-Z]/)
+    .withMessage("Mật khẩu phải chứa ít nhất một chữ cái in hoa")
+    .matches(/[a-z]/)
+    .withMessage("Mật khẩu phải chứa ít nhất một chữ cái in thường")
+    .matches(/[0-9]/)
+    .withMessage("Mật khẩu phải chứa ít nhất một chữ số")
+    .matches(/[!@#$%^&*(),.?":{}|<>]/)
+    .withMessage("Mật khẩu phải chứa ít nhất một ký tự đặc biệt"),
   body("confirmPassword")
     .trim()
     .notEmpty()

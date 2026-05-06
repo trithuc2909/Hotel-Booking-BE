@@ -308,3 +308,7 @@ export const getAdminRoomById = async (
 export const getAvailableRooms = async (request: AvailableRoomsRequest) => {
   return roomDb.findAvailableRooms(request);
 };
+
+export const getOccupiedDateRangesForRoom = async (roomId: string) => {
+  return roomDb.findOccupiedDateRangesForRoom(roomId);
+};

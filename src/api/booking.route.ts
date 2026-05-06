@@ -9,11 +9,6 @@ import {
 
 const router = Router();
 
-/**
- * @route  POST /api/v1/bookings
- * @desc   Tạo booking mới
- * @access Private (User | Admin)
- */
 router.post(
   "/",
   protect,
@@ -22,12 +17,6 @@ router.post(
   handleValidationErrors,
   bookingController.createBooking,
 );
-
-/**
- * @route  GET /api/v1/bookings/:id
- * @desc   Lấy thông tin booking theo ID
- * @access Private (Owner)
- */
 router.get(
   "/:id",
   protect,

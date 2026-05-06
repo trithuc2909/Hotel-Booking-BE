@@ -4,4 +4,5 @@ export interface UpdateUserProfileRequest {
   address?: string;
   nationality?: string;
   dateOfBirth?: Date;
+  avatarUrl?: string;
 }

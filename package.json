@@ -42,6 +42,7 @@
     "@types/multer": "^2.0.0",
     "@types/node": "^25.0.5",
     "@types/nodemailer": "^7.0.9",
+    "@types/qs": "^6.15.0",
     "@types/uuid": "^10.0.0",
     "cross-env": "^10.1.0",
     "dotenv-cli": "^11.0.0",
@@ -64,6 +65,7 @@
     "multer": "^2.1.1",
     "nodemailer": "^7.0.12",
     "prisma": "^6.10.1",
+    "qs": "^6.15.1",
     "uuid": "^13.0.0",
     "winston": "^3.19.0"
   }

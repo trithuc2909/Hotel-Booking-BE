@@ -21,11 +21,6 @@ export const createBookingValidation = [
     .isString().withMessage("roomId phải là chuỗi")
     .trim(),
 
-  body("rooms.*.roomName")
-    .notEmpty().withMessage("roomName không được để trống")
-    .isString().withMessage("roomName phải là chuỗi")
-    .trim(),
-
   body("services")
     .optional()
     .isArray().withMessage("services phải là mảng"),

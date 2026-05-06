@@ -13,3 +13,18 @@ export const findAllPromotions = async () => {
     orderBy: { createdOn: "desc" },
   });
 };
+
+export const findPromotionByCode = async (code: string, userId: string) => {
+  return prisma.promotion.findUnique({
+    where: { code },
+    include: {
+      _count: {
+        select: { usages: true },
+      },
+      usages: {
+        where: { userId },
+        select: { id: true },
+      },
+    },
+  });
+};

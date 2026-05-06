@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+import { BookingStatus, Prisma } from "@prisma/client";
 import { STATUS, STATUS_TYPE } from "../constant/status.constant";
 import {
   AvailableRoomResponse,
@@ -401,8 +401,9 @@ export const findAvailableRooms = async (request: AvailableRoomsRequest) => {
       AND r."maxGuests" >= ${guests}
       ${excludeRoomId ? Prisma.sql`AND r.id != ${excludeRoomId}` : Prisma.empty}
       AND NOT EXISTS (
-        SELECT 1 FROM bookings b
-        WHERE b."roomId" = r.id
+        SELECT 1 FROM booking_rooms br
+        JOIN bookings b ON b.id = br."bookingId"
+        WHERE br."roomId" = r.id
           AND b.status IN (
             ${Prisma.raw(`'${BOOKING_STATUS.PENDING}'`)},
             ${Prisma.raw(`'${BOOKING_STATUS.CONFIRMED}'`)}
@@ -413,4 +414,33 @@ export const findAvailableRooms = async (request: AvailableRoomsRequest) => {
     ORDER BY r."basePrice" ASC
     LIMIT 10
   `;
+};
+
+export const findOccupiedDateRangesForRoom = async (roomId: string) => {
+  return await prisma.booking.findMany({
+    where: {
+      rooms: {
+        some: {
+          roomId,
+        },
+      },
+      status: {
+        in: [
+          BookingStatus.PENDING_PAYMENT,
+          BookingStatus.CONFIRMED,
+          BookingStatus.CHECKED_IN,
+        ],
+      },
+      checkOutDate: {
+        gt: new Date(),
+      },
+    },
+    select: {
+      checkInDate: true,
+      checkOutDate: true,
+    },
+    orderBy: {
+      checkInDate: "asc",
+    },
+  });
 };

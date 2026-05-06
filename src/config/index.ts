@@ -87,17 +87,36 @@ const config = {
   },
 
   defaults: {
-    logoUrl: `${process.env.MINIO_PUBLIC_URL || "http://localhost:9000"}/images/defaults/logo-default.png`
+    logoUrl: `${process.env.MINIO_PUBLIC_URL || "http://localhost:9000"}/images/defaults/logo-default.png`,
   },
 
   momo: {
     partnerCode: process.env.MOMO_PARTNER_CODE || "MOMO",
     accessKey: process.env.MOMO_ACCESS_KEY || "",
     secretKey: process.env.MOMO_SECRET_KEY || "",
-    endpoint: process.env.MOMO_ENDPOINT || "https://test-payment.momo.vn/v2/gateway/api/create",
-    redirectUrl: process.env.MOMO_REDIRECT_URL || "http://localhost:3000/payment/result",
-    ipnUrl: process.env.MOMO_IPN_URL || ""
-  }
+    endpoint:
+      process.env.MOMO_ENDPOINT ||
+      "https://test-payment.momo.vn/v2/gateway/api/create",
+    redirectUrl:
+      process.env.MOMO_REDIRECT_URL || "http://localhost:3000/payment/result",
+    ipnUrl: process.env.MOMO_IPN_URL || "",
+  },
+
+  vnpay: {
+    tmnCode: process.env.VNP_TMN_CODE || "",
+    hashSecret: process.env.VNP_HASH_SECRET || "",
+    url:
+      process.env.VNP_URL ||
+      "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html",
+    returnUrl:
+      process.env.VNP_RETURN_URL ||
+      "http://localhost:3000/payments/vnpay-return",
+    ipnUrl: process.env.VNP_IPN_URL || "",
+    version: process.env.VNP_VERSION || "2.1.0",
+    command: process.env.VNP_COMMAND || "pay",
+    currCode: process.env.VNP_CURR_CODE || "VND",
+    locale: process.env.VNP_LOCALE || "vn",
+  },
 };
 
 if (!config.database.url) {

@@ -3,7 +3,11 @@ import { ResponseHelper } from "../utils/response";
 import * as roomService from "../services/room.service";
 import { catchAsyncErrorWithCode } from "../utils/catchAsyncError";
 import { matchedData } from "express-validator";
-import { CreateRoomRequest, MulterFiles, UpdateRoomRequest } from "../types/request/room";
+import {
+  CreateRoomRequest,
+  MulterFiles,
+  UpdateRoomRequest,
+} from "../types/request/room";
 
 export const getAllRooms = catchAsyncErrorWithCode(
   async (req: Request, res: Response) => {
@@ -123,7 +127,20 @@ export const getAvailableRooms = catchAsyncErrorWithCode(
       excludeRoomId: excludeRoomId ? String(excludeRoomId) : undefined,
     });
 
-    res.json(ResponseHelper.success(result, "Lấy danh sách phòng khả dụng thành công"));
+    res.json(
+      ResponseHelper.success(result, "Lấy danh sách phòng khả dụng thành công"),
+    );
   },
   "GET_AVAILABLE_ROOMS_ERROR",
+);
+
+export const getOccupiedDateRangesForRoom = catchAsyncErrorWithCode(
+  async (req: Request, res: Response) => {
+    const roomId = String(req.params.id);
+    const result = await roomService.getOccupiedDateRangesForRoom(roomId);
+    res.json(
+      ResponseHelper.success(result, "Lấy danh sách phòng khả dụng thành công"),
+    );
+  },
+  "GET_OCCUPIED_DATE_RANGES_FOR_ROOM_ERROR",
 );
