@@ -1,4 +1,4 @@
-import { BookingStatus, Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { STATUS, STATUS_TYPE } from "../constant/status.constant";
 import {
   AvailableRoomResponse,
@@ -16,7 +16,10 @@ import {
   UpdateRoomStatusRequest,
 } from "../types/request/room";
 import { ROLE_CONSTANTS } from "../constant/common.constant";
-import { BOOKING_STATUS } from "../constant/booking.constant";
+import {
+  BOOKING_STATUS,
+  BOOKING_STATUS_HOLDS_ROOM,
+} from "../constant/booking.constant";
 
 type PrismaTx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
 
@@ -405,8 +408,7 @@ export const findAvailableRooms = async (request: AvailableRoomsRequest) => {
         JOIN bookings b ON b.id = br."bookingId"
         WHERE br."roomId" = r.id
           AND b.status IN (
-            ${Prisma.raw(`'${BOOKING_STATUS.PENDING}'`)},
-            ${Prisma.raw(`'${BOOKING_STATUS.CONFIRMED}'`)}
+            ${Prisma.raw(BOOKING_STATUS_HOLDS_ROOM.map((s) => `'${s}'`).join(","))}
           )
           AND b."checkInDate" < ${checkOut}
           AND b."checkOutDate" > ${checkIn}
@@ -417,30 +419,16 @@ export const findAvailableRooms = async (request: AvailableRoomsRequest) => {
 };
 
 export const findOccupiedDateRangesForRoom = async (roomId: string) => {
-  return await prisma.booking.findMany({
-    where: {
-      rooms: {
-        some: {
-          roomId,
-        },
-      },
-      status: {
-        in: [
-          BookingStatus.PENDING_PAYMENT,
-          BookingStatus.CONFIRMED,
-          BookingStatus.CHECKED_IN,
-        ],
-      },
-      checkOutDate: {
-        gt: new Date(),
-      },
-    },
-    select: {
-      checkInDate: true,
-      checkOutDate: true,
-    },
-    orderBy: {
-      checkInDate: "asc",
-    },
-  });
+  const now = new Date();
+  return prisma.$queryRaw<{ checkInDate: Date; checkOutDate: Date }[]>`
+    SELECT b."checkInDate", b."checkOutDate"
+    FROM bookings b
+    JOIN booking_rooms br ON br."bookingId" = b.id
+    WHERE br."roomId" = ${roomId}
+      AND b.status IN (
+        ${Prisma.raw(BOOKING_STATUS_HOLDS_ROOM.map((s) => `'${s}'`).join(","))}
+      )
+      AND b."checkOutDate" > ${now}
+    ORDER BY b."checkInDate" ASC
+  `;
 };

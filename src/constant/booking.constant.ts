@@ -7,7 +7,15 @@ export const BOOKING_STATUS = {
   CANCELLED: "CAN",
   NO_SHOW: "NSW",
   EXPIRED: "EXP",
+  FAILED: "FAI",
+  REFUNDED: "REF",
 } as const;
+
+export const BOOKING_STATUS_HOLDS_ROOM = [
+  BOOKING_STATUS.PENDING_PAYMENT,
+  BOOKING_STATUS.CONFIRMED,
+  BOOKING_STATUS.CHECKED_IN,
+] as const;
 
 export type BookingStatusCode =
   (typeof BOOKING_STATUS)[keyof typeof BOOKING_STATUS];

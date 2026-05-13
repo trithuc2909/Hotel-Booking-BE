@@ -58,3 +58,17 @@ export const getPaymentStatusValidation = [
     .notEmpty().withMessage("orderId không được để trống")
     .isString().withMessage("orderId phải là chuỗi"),
 ];
+
+export const getBookingHistoryValidation = [
+  query("status")
+    .optional()
+    .isString().withMessage("status phải là chuỗi")
+    .isIn(["PND", "PPY", "CFM", "CHK", "CKO", "CAN", "NSW", "EXP"])
+    .withMessage("status không hợp lệ"),
+];
+
+export const cancelBookingValidation = [
+  param("id")
+    .notEmpty().withMessage("id không được để trống")
+    .isString().withMessage("id phải là chuỗi"),
+];

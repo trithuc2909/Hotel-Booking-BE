@@ -5,7 +5,6 @@ import {
   VNPayWebhookRequest,
 } from "../types/request/vnpay";
 import { formatDate } from "../utils/common";
-import logger from "../config/logger.config";
 
 const Encode = (str: string): string => {
   return encodeURIComponent(str).replace(/%20/g, "+");

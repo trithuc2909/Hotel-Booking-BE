@@ -24,3 +24,11 @@ export const findAllAmenities = async () => {
     orderBy: { name: "asc" },
   });
 };
+
+export const findCodesByType = async (type: string) => {
+  return prisma.code.findMany({
+    where: { type, isActive: true },
+    select: { code: true, displayAs: true },
+    orderBy: { code: "asc" },
+  });
+};

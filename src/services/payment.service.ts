@@ -12,6 +12,7 @@ import {
   VNPayPaymentRequest,
   VNPayWebhookRequest,
 } from "../types/request/vnpay";
+import { BOOKING_STATUS } from "../constant/booking.constant";
 
 export const createMomoPayment = async (bookingId: string, userId: string) => {
   const booking = await bookingDb.findBookingById(bookingId);
@@ -25,7 +26,7 @@ export const createMomoPayment = async (bookingId: string, userId: string) => {
     throw AppError.forbidden("Không có quyền truy cập", "FORBIDDEN");
   }
 
-  if (booking.status !== BookingStatus.PENDING_PAYMENT) {
+  if (booking.status.code !== BOOKING_STATUS.PENDING_PAYMENT) {
     throw AppError.badRequest(
       "Booking không ở trạng thái chờ thanh toán",
       "INVALID_BOOKING_STATUS",
@@ -176,7 +177,7 @@ export const createVNPayPayment = async (
     throw AppError.forbidden("Không có quyền truy cập", "FORBIDDEN");
   }
 
-  if (booking.status !== BookingStatus.PENDING_PAYMENT) {
+  if (booking.status.code !== BOOKING_STATUS.PENDING_PAYMENT) {
     throw AppError.badRequest(
       "Booking không ở trạng thái chờ thanh toán",
       "INVALID_BOOKING_STATUS",

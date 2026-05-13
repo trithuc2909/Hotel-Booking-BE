@@ -18,3 +18,12 @@ export const getAmenities = catchAsyncErrorWithCode(
   },
   "GET_AMENITIES_ERROR",
 );
+
+export const getCodes = catchAsyncErrorWithCode(
+  async (req: Request, res: Response) => {
+    const type = String(req.query.type ?? "");
+    const data = await lookupService.getCodesByType(type);
+    res.json(ResponseHelper.success(data, "Lấy danh sách codes thành công"));
+  },
+  "GET_CODES_ERROR",
+);
