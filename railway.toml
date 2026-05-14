@@ -1,8 +1,9 @@
 [build]
 builder = "nixpacks"
+buildCommand = "npm run build && cp -r src/templates dist/"
 
 [deploy]
-startCommand = "npm start"
+startCommand = "node dist/server.js"
 healthcheckPath = "/health"
 healthcheckTimeout = 30
 restartPolicyType = "on_failure"
