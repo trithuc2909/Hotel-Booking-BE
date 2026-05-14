@@ -1,5 +1,5 @@
 export const MINIO_BUCKET = {
-  IMAGES: "images",
+  IMAGES: "hotel-booking-images",
 } as const;
 
 export const MINIO_FOLDERS = {
