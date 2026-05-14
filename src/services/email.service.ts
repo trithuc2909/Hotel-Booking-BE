@@ -1,16 +1,13 @@
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 import config from "../config";
 import logger from "../config/logger.config";
 import { renderEmailTemplate } from "../templates/email/email.templates";
 import { EmailType } from "../templates/email/email.types";
 
+// Resend client — dùng HTTP API (port 443), Railway không block
+const resend = new Resend(process.env.SMTP_PASSWORD);
+
 class EmailService {
-  private transporter;
-
-  constructor() {
-    this.transporter = nodemailer.createTransport(config.email.smtp);
-  }
-
   // Send email (private method)
   private async sendEmail(
     to: string,
@@ -18,16 +15,22 @@ class EmailService {
     html: string,
   ): Promise<void> {
     try {
-      const info = await this.transporter.sendMail({
-        from: `"${config.email.from.name}" <${config.email.from.email}>`,
-        to,
+      const fromName = config.email.from.name || "Hotel Booking System";
+      const fromEmail = config.email.from.email || "onboarding@resend.dev";
+
+      const { data, error } = await resend.emails.send({
+        from: `${fromName} <${fromEmail}>`,
+        to: [to],
         subject,
         html,
       });
 
-      logger.info(
-        `Email sent successfully to ${to} | MessageID: ${info.messageId}`,
-      );
+      if (error) {
+        logger.error(`Resend API error sending to ${to}:`, error);
+        throw new Error(error.message);
+      }
+
+      logger.info(`Email sent successfully to ${to} | MessageID: ${data?.id}`);
     } catch (error) {
       logger.error(`Failed to send email to ${to}:`, error);
       throw error;
@@ -58,14 +61,14 @@ class EmailService {
     await this.sendEmail(email, subject || "Xác thực email của bạn", html);
   }
 
-  // Verify SMTP connection
+  // Verify connection (no-op for Resend HTTP API)
   async verifyConnection(): Promise<boolean> {
     try {
-      await this.transporter.verify();
-      logger.info("SMTP connection verified successfully");
+      // Resend doesn't need SMTP handshake — HTTP API always ready
+      logger.info("Resend HTTP API — no connection verification needed");
       return true;
     } catch (error) {
-      logger.error("SMTP connection failed:", error);
+      logger.error("Resend connection check failed:", error);
       return false;
     }
   }
