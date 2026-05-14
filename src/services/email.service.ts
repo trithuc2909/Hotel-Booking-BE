@@ -4,11 +4,9 @@ import logger from "../config/logger.config";
 import { renderEmailTemplate } from "../templates/email/email.templates";
 import { EmailType } from "../templates/email/email.types";
 
-// Resend client — dùng HTTP API (port 443), Railway không block
 const resend = new Resend(process.env.SMTP_PASSWORD);
 
 class EmailService {
-  // Send email (private method)
   private async sendEmail(
     to: string,
     subject: string,
