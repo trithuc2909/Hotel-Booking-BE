@@ -50,7 +50,7 @@ const config = {
     smtp: {
       host: process.env.SMTP_HOST,
       port: parseInt(process.env.SMTP_PORT || "587"),
-      secure: false, // true for 465, false for other ports
+      secure: parseInt(process.env.SMTP_PORT || "587") === 465,
       supportEmail:
         process.env.SMTP_SUPPORT_EMAIL || "support@bullmanhotel.com",
       auth: {
