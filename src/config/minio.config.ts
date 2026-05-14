@@ -37,6 +37,6 @@ export async function ensureBucket(bucketName: string): Promise<void> {
   }
 }
 
-export function getPublicUrl(bucketName: string, objectPath: string): string {
-  return `${config.minio.publicUrl}/${bucketName}/${objectPath}`;
+export function getPublicUrl(_bucketName: string, objectPath: string): string {
+  return `${config.minio.publicUrl}/${objectPath}`;
 }
