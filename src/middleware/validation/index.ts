@@ -38,3 +38,6 @@ export * from "./auth.validation";
 export * from "./room.validation";
 export * from "./common.validation";
 export * from "./booking.validation";
+export * from "./service.validation";
+export * from "./promotion.validation";
+

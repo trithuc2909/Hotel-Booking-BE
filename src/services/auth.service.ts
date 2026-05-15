@@ -5,7 +5,7 @@ import { AuthResponse } from "../types/response/auth";
 import AppError from "../utils/appError";
 import { STATUS } from "../constant/status.constant";
 import { ROLE } from "../constant/role.constant";
-import { generateToken } from "../utils/jwt";
+import { generateToken, refreshAccessToken } from "../utils/jwt";
 import otpService from "./otp.service";
 import { OTPType } from "@prisma/client";
 import { ROLE_CONSTANTS } from "../constant/common.constant";
@@ -251,4 +251,8 @@ export const resetPassword = async (token: string, newPassword: string): Promise
 
 export const validateResetToken = async (token: string): Promise<boolean> => {
   return otpService.validateResetToken(token);
-}
+};
+
+export const refreshToken = async (token: string) => {
+  return refreshAccessToken(token);
+};

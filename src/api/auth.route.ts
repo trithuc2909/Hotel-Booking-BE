@@ -58,8 +58,7 @@ router.post(
   authController.resetPassword
 )
 
-router.get(
-  "/validate-reset-token",
-  authController.validateResetToken
-)
+router.get("/validate-reset-token", authController.validateResetToken);
+
+router.post("/refresh", authController.refreshToken);
 export default router;

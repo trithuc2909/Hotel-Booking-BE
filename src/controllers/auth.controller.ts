@@ -133,9 +133,37 @@ export const validateResetToken = async (
 
     const isValid = await authService.validateResetToken(token);
     res.status(200).json({
-      valid: isValid
+      valid: isValid,
     });
   } catch (error) {
     next(error);
   }
-}
+};
+
+export const refreshToken = catchAsyncErrorWithCode(
+  async (req: Request, res: Response) => {
+    const refreshToken = req.body.refreshToken || req.cookies.refresh_token;
+
+    if (!refreshToken) {
+      res.status(401).json(
+        ResponseHelper.error(
+          "Refresh token không tồn tại",
+          "REFRESH_TOKEN_REQUIRED",
+        ),
+      );
+      return;
+    }
+
+    const result = await authService.refreshToken(refreshToken);
+    res
+      .status(200)
+      .json(
+        ResponseHelper.success(
+          result,
+          "Làm mới token thành công",
+          "REFRESH_TOKEN_SUCCESS",
+        ),
+      );
+  },
+  "REFRESH_TOKEN_ERROR",
+);

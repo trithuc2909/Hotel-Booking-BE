@@ -58,6 +58,40 @@ class MinioService {
     await minioClient.removeObject(bucketName, key);
   }
 
+  async deleteFolder(prefix: string): Promise<void> {
+    const objectKeys: string[] = await new Promise((resolve, reject) => {
+      const keys: string[] = [];
+
+      const stream = minioClient.listObjects(MINIO_BUCKET.IMAGES, prefix, true);
+
+      stream.on("data", (obj) => {
+        if (obj.name) {
+          keys.push(obj.name);
+        }
+      });
+
+      stream.on("end", () => {
+        resolve(keys);
+      });
+
+      stream.on("error", (err) => {
+        logger.error(`Lỗi khi liệt kê object trong folder: ${prefix}`, err);
+
+        reject(err);
+      });
+    });
+
+    if (objectKeys.length === 0) return;
+
+    await Promise.all(
+      objectKeys.map((key) =>
+        this.deleteFile(MINIO_BUCKET.IMAGES, key).catch((err) => {
+          logger.error(`Lỗi khi xóa file: ${key}`, err);
+        }),
+      ),
+    );
+  }
+
   async uploadHotelImage(
     hotelId: string,
     file: Express.Multer.File,
@@ -272,33 +306,44 @@ class MinioService {
   }
 
   async deleteRoomFolder(roomId: string): Promise<void> {
-    const prefix = `${MINIO_FOLDERS.ROOM}/${roomId}/`;
+    return this.deleteFolder(`${MINIO_FOLDERS.ROOM}/${roomId}/`);
+  }
 
-    const objectKeys: string[] = await new Promise((resolve, reject) => {
-      const keys: string[] = [];
+  async uploadServiceImage(
+    serviceId: string,
+    file: Express.Multer.File,
+  ): Promise<UploadResult> {
+    const folder = `${MINIO_FOLDERS.SERVICE}/${serviceId}`;
 
-      const stream = minioClient.listObjects(MINIO_BUCKET.IMAGES, prefix, true);
+    const extension = getExtensionFromMime(file.mimetype);
 
-      stream.on("data", (obj) => {
-        if (obj.name) keys.push(obj.name);
-      });
+    const customFileName = `thumbnail.${extension}`;
 
-      stream.on("end", () => resolve(keys));
-      stream.on("error", (err) => {
-        logger.error("Lỗi khi liệt kê các đối tượng cần xóa", err);
-        reject(err);
-      });
+    return this.uploadFile({
+      bucketName: MINIO_BUCKET.IMAGES,
+      file,
+      folder,
+      customFileName,
     });
+  }
 
-    if (objectKeys.length === 0) return;
+  async deleteServiceFolder(serviceId: string): Promise<void> {
+    return this.deleteFolder(`${MINIO_FOLDERS.SERVICE}/${serviceId}/`);
+  }
 
-    await Promise.all(
-      objectKeys.map((key) =>
-        this.deleteFile(MINIO_BUCKET.IMAGES, key).catch((err) => {
-          logger.error(`Lỗi khi xóa phòng: ${key}`, err);
-        }),
-      ),
-    );
+  async uploadPromotionImage(
+    promotionId: string,
+    file: Express.Multer.File,
+  ): Promise<UploadResult> {
+    return this.uploadFile({
+      bucketName: MINIO_BUCKET.IMAGES,
+      file,
+      folder: `${MINIO_FOLDERS.PROMOTION}/${promotionId}`,
+      customFileName: `thumbnail.${getExtensionFromMime(file.mimetype)}`,
+    });
+  }
+  async deletePromotionFolder(promotionId: string): Promise<void> {
+    return this.deleteFolder(`${MINIO_FOLDERS.PROMOTION}/${promotionId}/`);
   }
 }
 

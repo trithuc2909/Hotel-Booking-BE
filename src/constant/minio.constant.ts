@@ -6,6 +6,8 @@ export const MINIO_FOLDERS = {
   USER: "users",
   HOTEL: "hotels",
   ROOM: "rooms",
+  SERVICE: "services",
+  PROMOTION: "promotions",
 } as const;
 
 export const MIME_EXTENSION_MAP: Record<string, string> = {
