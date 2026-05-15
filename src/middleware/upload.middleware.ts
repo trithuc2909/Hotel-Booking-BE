@@ -42,3 +42,7 @@ export const uploadRoomImages = upload.fields([
   { name: "thumbnailUrl", maxCount: 1 },
   { name: "imageUrls", maxCount: 4 },
 ]);
+
+export const uploadServiceImage = upload.single("imageUrl");
+
+export const uploadPromotionImage = upload.single("imageUrl");

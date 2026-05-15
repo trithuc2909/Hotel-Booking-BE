@@ -17,7 +17,6 @@ import {
 } from "../types/request/room";
 import { ROLE_CONSTANTS } from "../constant/common.constant";
 import {
-  BOOKING_STATUS,
   BOOKING_STATUS_HOLDS_ROOM,
 } from "../constant/booking.constant";
 

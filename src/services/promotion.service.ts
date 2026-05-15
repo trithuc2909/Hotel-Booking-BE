@@ -1,7 +1,13 @@
 import { STATUS } from "../constant/status.constant";
 import * as promotionDb from "../db/promotion.db";
+import {
+  CreatePromotionRequest,
+  PromotionFilter,
+  UpdatePromotionRequest,
+} from "../types/request/promotion";
 import AppError from "../utils/appError";
 import { DiscountType } from "@prisma/client";
+import { minioService } from "./minio.service";
 
 export const getAllPromotions = async () => {
   return promotionDb.findAllPromotions();
@@ -80,3 +86,77 @@ export const validatePromotionCode = async (
     finalAmount: Math.max(orderValue - discountAmount, 0),
   };
 };
+
+export const getAdminPromotions = async (filter: PromotionFilter) => {
+  const pageNum = Math.max(1, filter.pageNum ?? 1);
+  const pageSize = Math.min(100, Math.max(1, filter.pageSize ?? 10));
+  return promotionDb.findAdminPromotions({ ...filter, pageNum, pageSize });
+};
+
+export const getAdminPromotionById = async (id: string) => {
+  const p = await promotionDb.findAdminPromotionById(id);
+  if (!p)
+    throw AppError.notFound("Không tìm thấy ưu đãi", "PROMOTION_NOT_FOUND");
+  return p;
+};
+
+export const createPromotion = async (
+  data: CreatePromotionRequest,
+  file?: Express.Multer.File,
+) => {
+  const existing = await promotionDb.findAdminPromotionByCode(data.code);
+  if (existing)
+    throw AppError.conflict("Mã ưu đãi đã tồn tại", "PROMOTION_CODE_EXISTED");
+  const promotion = await promotionDb.createPromotion(data);
+  if (file) {
+    const result = await minioService.uploadPromotionImage(promotion.id, file);
+    await promotionDb.updatePromotion(promotion.id, { imageUrl: result.url });
+  }
+  return promotion;
+};
+
+export const updatePromotion = async (
+  id: string,
+  data: UpdatePromotionRequest,
+  file?: Express.Multer.File,
+) => {
+  const promotion = await promotionDb.findAdminPromotionById(id);
+  if (!promotion)
+    throw AppError.notFound("Không tìm thấy ưu đãi", "PROMOTION_NOT_FOUND");
+  if (data.code && data.code !== promotion.code) {
+    const existing = await promotionDb.findAdminPromotionByCode(data.code);
+    if (existing)
+      throw AppError.conflict("Mã ưu đãi đã tồn tại", "PROMOTION_CODE_EXISTED");
+  }
+  let imageUrl = promotion.imageUrl ?? undefined;
+  if (file) {
+    const result = await minioService.uploadPromotionImage(id, file);
+    imageUrl = result.url;
+  }
+  return promotionDb.updatePromotion(id, { ...data, imageUrl });
+};
+
+export const updatePromotionStatus = async (id: string, status: string) => {
+  const promotion = await promotionDb.findAdminPromotionById(id);
+  if (!promotion)
+    throw AppError.notFound("Không tìm thấy ưu đãi", "PROMOTION_NOT_FOUND");
+  const valid = [STATUS.ACTIVE, STATUS.INACTIVE];
+  if (!valid.includes(status as any))
+    throw AppError.badRequest("Trạng thái không hợp lệ", "INVALID_STATUS");
+  return promotionDb.updatePromotionStatus(id, status);
+};
+
+export const deletePromotion = async (id: string) => {
+  const promotion = await promotionDb.findAdminPromotionById(id);
+  if (!promotion)
+    throw AppError.notFound("Không tìm thấy ưu đãi", "PROMOTION_NOT_FOUND");
+  if (promotion.status !== STATUS.INACTIVE)
+    throw AppError.badRequest(
+      "Phải ngưng ưu đãi trước khi xóa",
+      "CANNOT_DELETE_ACTIVE_PROMOTION",
+    );
+  await minioService.deletePromotionFolder(id).catch(() => {});
+  return promotionDb.deletePromotionById(id);
+};
+
+export const getPromotionStats = () => promotionDb.getPromotionStats();
