@@ -1,3 +1,5 @@
+import { BookingStatus } from "@prisma/client";
+
 export const BOOKING_STATUS = {
   PENDING: "PND",
   PENDING_PAYMENT: "PPY",
@@ -19,3 +21,9 @@ export const BOOKING_STATUS_HOLDS_ROOM = [
 
 export type BookingStatusCode =
   (typeof BOOKING_STATUS)[keyof typeof BOOKING_STATUS];
+
+export const INVALID_BOOKING_STATUSES = [
+  BookingStatus.CANCELLED,
+  BookingStatus.NO_SHOW,
+  BookingStatus.EXPIRED,
+] as const;

@@ -40,4 +40,5 @@ router.post(
   handleValidationErrors,
   bookingController.cancelBooking,
 );
+router.patch("/:id/status", protect, bookingController.updateBookingStatus);
 export default router;

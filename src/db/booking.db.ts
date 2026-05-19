@@ -2,11 +2,16 @@ import { BookingStatus, DiscountType, Prisma } from "@prisma/client";
 import { CreateBookingRequest } from "../types/request/booking";
 import prisma from "./prisma";
 import AppError from "../utils/appError";
-import { STATUS } from "../constant/status.constant";
+import { STATUS, STATUS_TYPE } from "../constant/status.constant";
 import {
   BOOKING_STATUS,
   BOOKING_STATUS_HOLDS_ROOM,
 } from "../constant/booking.constant";
+import {
+  AdminBookingsFilter,
+  FindAdminBookingsResponse,
+} from "../types/response/booking";
+import { PAYMENT_METHOD } from "../constant/payment.constant";
 
 const calculateNights = (checkIn: Date, checkOut: Date): number => {
   const ms = checkOut.getTime() - checkIn.getTime();
@@ -202,7 +207,10 @@ export const createBooking = async (data: CreateBookingRequest) => {
           discount,
           totalAmount,
           expiresAt,
-          status: BookingStatus.PENDING_PAYMENT,
+          status:
+            data.paymentMethod === PAYMENT_METHOD.CASH
+              ? BookingStatus.CONFIRMED
+              : BookingStatus.PENDING_PAYMENT,
           rooms: { create: roomsToCreate },
           services: { create: servicesToCreate },
         },
@@ -417,4 +425,252 @@ export const findBookingsByUserId = async (
 
     ORDER BY b."createdOn" DESC
   `;
+};
+
+const BOOKING_SORT_MAP: Record<string, Prisma.Sql> = {
+  createdOn: Prisma.sql`b."createdOn"`,
+  checkInDate: Prisma.sql`b."checkInDate"`,
+  checkOutDate: Prisma.sql`b."checkOutDate"`,
+  totalAmount: Prisma.sql`b."totalAmount"`,
+};
+
+export const findAdminBookings = async (
+  filter: AdminBookingsFilter,
+): Promise<FindAdminBookingsResponse> => {
+  const {
+    pageNum = 1,
+    pageSize = 5,
+    sortBy,
+    sortDirection,
+    status,
+    search,
+    checkInDate,
+    checkOutDate,
+  } = filter;
+  const offset = (pageNum - 1) * pageSize;
+  const conditions: Prisma.Sql[] = [
+    Prisma.sql`b.status::text != ${BOOKING_STATUS.EXPIRED}`,
+  ];
+
+  if (status) {
+    conditions.push(Prisma.sql`b.status::text = ${status}`);
+  }
+
+  if (search?.trim()) {
+    const keyword = `%${search.trim().replace(/[%_]/g, "\\$&")}%`;
+    conditions.push(
+      Prisma.sql`
+      (
+        b."bookingCode" ILIKE ${keyword}
+        OR cu."fullName" ILIKE ${keyword}
+        OR cu."phone" ILIKE ${keyword}
+      )
+    `,
+    );
+  }
+
+  if (checkInDate) {
+    conditions.push(Prisma.sql`b."checkInDate" >= ${new Date(checkInDate)}`);
+  }
+
+  if (checkOutDate) {
+    conditions.push(Prisma.sql`b."checkOutDate" <= ${new Date(checkOutDate)}`);
+  }
+  const whereClause =
+    conditions.length > 0
+      ? Prisma.sql`WHERE ${Prisma.join(conditions, " AND ")}`
+      : Prisma.empty;
+  const safeSortBy = BOOKING_SORT_MAP[sortBy!] ?? Prisma.sql`b."createdOn"`;
+  const safeSortDirection =
+    sortDirection === "asc" ? Prisma.sql`ASC` : Prisma.sql`DESC`;
+  const dataQuery = prisma.$queryRaw<any[]>`
+    SELECT
+      b.id,
+      b."bookingCode",
+      b."checkInDate",
+      b."checkOutDate",
+      b."totalAmount",
+      b.status::text as status,
+      b."createdOn",
+      cu."fullName" as "customerName",
+      cu.email as "customerEmail",
+      cu.phone as "customerPhone",
+      c."displayAs",
+      
+      COALESCE(
+        (
+          SELECT json_agg(json_build_object('roomName', br."roomName"))
+          FROM booking_rooms br
+          WHERE br."bookingId" = b.id
+        ),
+        '[]'::json
+      ) as rooms,
+
+      COALESCE(
+        (
+          SELECT json_agg(json_build_object('serviceName', bs."serviceName", 'quantity', bs.quantity))
+          FROM booking_services bs
+          WHERE bs."bookingId" = b.id
+        ),
+        '[]'::json
+      ) as services
+    FROM bookings b
+    INNER JOIN customers cu ON b."customerId" = cu.id
+    LEFT JOIN codes c ON c.code = b.status::text AND c.type = ${STATUS_TYPE.BOOKING_STATUS}
+    ${whereClause}
+    ORDER BY ${safeSortBy} ${safeSortDirection}
+    LIMIT ${pageSize} OFFSET ${offset}
+  `;
+  const countQuery = prisma.$queryRaw<{ count: bigint }[]>`
+    SELECT COUNT(b.id) AS count
+    FROM bookings b
+    INNER JOIN customers cu ON b."customerId" = cu.id
+    ${whereClause}
+  `;
+  const [data, countResult] = await Promise.all([dataQuery, countQuery]);
+  const total = Number(countResult[0]?.count ?? 0);
+  const formattedData = data.map((item) => ({
+    ...item,
+    totalAmount: Number(item.totalAmount),
+  }));
+  return { data: formattedData, total, pageNum, pageSize };
+};
+
+export const getBookingAnalytics = async () => {
+  const recentActivities = await prisma.$queryRaw<any[]>`
+    SELECT
+      b.id,
+      b."bookingCode",
+      cu."fullName" as "customerName",
+      b.status::text as status,
+      c."displayAs",
+      b."modifiedOn"
+    FROM bookings b
+    INNER JOIN customers cu ON b."customerId" = cu.id
+    LEFT JOIN codes c ON c.code = b.status::text AND c.type = ${STATUS_TYPE.BOOKING_STATUS}
+    ORDER BY b."modifiedOn" DESC
+    LIMIT 5
+  `;
+
+  const allocation = await prisma.$queryRaw<any[]>`
+    SELECT
+      b.status::text as status,
+      COUNT(b.id) as count,
+      c."displayAs"
+    FROM bookings b
+    LEFT JOIN codes c ON c.code = b.status::text AND c.type = ${STATUS_TYPE.BOOKING_STATUS}
+    GROUP BY b.status, c."displayAs"
+  `;
+
+  return {
+    recentActivities: recentActivities.map((item) => ({
+      ...item,
+      modifiedOn: item.modifiedOn ? new Date(item.modifiedOn) : null,
+    })),
+    allocation: allocation.map((item) => ({
+      status: item.status,
+      displayAs: item.displayAs,
+      count: Number(item.count),
+    })),
+  };
+};
+
+export const exportAdminBookings = async (
+  filter: Omit<AdminBookingsFilter, "pageNum" | "pageSize">,
+) => {
+  const { sortBy, sortDirection, status, search, checkInDate, checkOutDate } =
+    filter;
+  const conditions: Prisma.Sql[] = [
+    Prisma.sql`b.status::text != ${BOOKING_STATUS.EXPIRED}`,
+  ];
+  if (status) {
+    conditions.push(Prisma.sql`b.status::text = ${status}`);
+  }
+  if (search?.trim()) {
+    const keyword = `%${search.trim().replace(/[%_]/g, "\\$&")}%`;
+    conditions.push(
+      Prisma.sql`
+      (
+        b."bookingCode" ILIKE ${keyword}
+        OR cu."fullName" ILIKE ${keyword}
+        OR cu."phone" ILIKE ${keyword}
+      )
+    `,
+    );
+  }
+  if (checkInDate) {
+    conditions.push(Prisma.sql`b."checkInDate" >= ${new Date(checkInDate)}`);
+  }
+  if (checkOutDate) {
+    conditions.push(Prisma.sql`b."checkOutDate" <= ${new Date(checkOutDate)}`);
+  }
+  const whereClause =
+    conditions.length > 0
+      ? Prisma.sql`WHERE ${Prisma.join(conditions, " AND ")}`
+      : Prisma.empty;
+  const safeSortBy = BOOKING_SORT_MAP[sortBy!] ?? Prisma.sql`b."createdOn"`;
+  const safeSortDirection =
+    sortDirection === "asc" ? Prisma.sql`ASC` : Prisma.sql`DESC`;
+  const dataQuery = await prisma.$queryRaw<any[]>`
+    SELECT
+      b.id,
+      b."bookingCode",
+      b."checkInDate",
+      b."checkOutDate",
+      b."totalAmount",
+      b."totalService",
+      b.discount,
+      b."taxAmount",
+      b.status::text as status,
+      b."createdOn",
+      cu."fullName" as "customerName",
+      cu.phone as "customerPhone",
+      c."displayAs",
+      
+      (SELECT COALESCE(SUM(br."pricePerNight" * br.nights), 0) FROM booking_rooms br WHERE br."bookingId" = b.id) as "totalRoom",
+      
+      (SELECT p."paymentMethod" FROM payments p WHERE p."bookingId" = b.id LIMIT 1) as "paymentMethod",
+      (SELECT pr.code FROM promotions pr WHERE pr.id = b."promotionId" LIMIT 1) as "promotionCode",
+      
+      COALESCE(
+        (
+          SELECT json_agg(
+            json_build_object(
+              'roomId', br."roomId",
+              'roomName', br."roomName",
+              'pricePerNight', br."pricePerNight",
+              'nights', br.nights,
+              'roomType', (SELECT rt.name FROM rooms r JOIN room_types rt ON r."roomTypeId" = rt.id WHERE r.id = br."roomId"),
+              'roomNumber', (SELECT r."roomNumber" FROM rooms r WHERE r.id = br."roomId")
+            )
+          )
+          FROM booking_rooms br
+          WHERE br."bookingId" = b.id
+        ),
+        '[]'::json
+      ) as rooms,
+      
+      COALESCE(
+        (
+          SELECT json_agg(
+            json_build_object(
+              'serviceName', bs."serviceName",
+              'quantity', bs.quantity,
+              'totalPrice', bs."totalPrice",
+              'categoryName', (SELECT sc.name FROM service_categories sc JOIN services s ON sc.id = s."serviceCategoryId" WHERE s.id = bs."serviceId")
+            )
+          )
+          FROM booking_services bs
+          WHERE bs."bookingId" = b.id
+        ),
+        '[]'::json
+      ) as services
+      
+    FROM bookings b
+    LEFT JOIN customers cu ON b."customerId" = cu.id
+    LEFT JOIN codes c ON c.code = b.status::text
+    ${whereClause}
+    ORDER BY ${safeSortBy} ${safeSortDirection}
+  `;
+  return dataQuery;
 };

@@ -5,7 +5,10 @@ import prisma from "../db/prisma";
 import { normalizePhone } from "../utils/common";
 import { BookingStatus } from "@prisma/client";
 import { BOOKING_STATUS } from "../constant/booking.constant";
-import { BookingHistoryResponse } from "../types/response/booking";
+import {
+  AdminBookingsFilter,
+  BookingHistoryResponse,
+} from "../types/response/booking";
 
 export const upsertCustomer = async (userId: string): Promise<string> => {
   const profile = await prisma.userProfile.findUnique({
@@ -184,4 +187,30 @@ export const cancelBooking = async (bookingId: string, userId: string) => {
   }
 
   return bookingDb.updateBookingStatus(bookingId, BookingStatus.CANCELLED);
+};
+
+export const getAdminBookings = async (filter: AdminBookingsFilter) => {
+  return bookingDb.findAdminBookings(filter);
+};
+
+export const getBookingAnalytics = async () => {
+  return await bookingDb.getBookingAnalytics();
+};
+
+export const updateBookingStatus = async (
+  bookingId: string,
+  status: BookingStatus,
+) => {
+  const booking = await bookingDb.findBookingById(bookingId);
+  if (!booking) {
+    throw AppError.notFound("Booking không tồn tại", "NOT_FOUND");
+  }
+  if (!status) {
+    throw AppError.badRequest("Trạng thái không hợp lệ", "INVALID_STATUS");
+  }
+  return bookingDb.updateBookingStatus(bookingId, status);
+};
+
+export const exportAdminBookings = async (filter: any) => {
+  return bookingDb.exportAdminBookings(filter);
 };

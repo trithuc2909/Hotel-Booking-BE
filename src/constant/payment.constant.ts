@@ -1,0 +1,7 @@
+export const PAYMENT_METHOD = {
+  CASH: "CASH",
+  BANK_TRANSFER: "BANK_TRANSFER",
+  CREDIT_CARD: "CREDIT_CARD",
+  MOMO: "MOMO",
+  VNPAY: "VNPAY",
+} as const;

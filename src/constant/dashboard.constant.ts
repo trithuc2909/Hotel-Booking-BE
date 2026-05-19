@@ -1,0 +1,7 @@
+import { BOOKING_STATUS } from "./booking.constant";
+
+export const INVALID_STATUS_CODES = [
+  BOOKING_STATUS.CANCELLED,
+  BOOKING_STATUS.NO_SHOW,
+  BOOKING_STATUS.EXPIRED,
+];

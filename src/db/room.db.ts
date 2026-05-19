@@ -384,8 +384,8 @@ export const updateRoomTx = async (
 export const findAvailableRooms = async (request: AvailableRoomsRequest) => {
   const { checkInDate, checkOutDate, guests, excludeRoomId } = request;
 
-  const checkIn = new Date(checkInDate + "T00:00:00.000Z");
-  const checkOut = new Date(checkOutDate + "T00:00:00.000Z");
+  const checkIn = new Date(checkInDate + "T14:00:00.000Z");
+  const checkOut = new Date(checkOutDate + "T12:00:00.000Z");
 
   return prisma.$queryRaw<AvailableRoomResponse[]>`
     SELECT

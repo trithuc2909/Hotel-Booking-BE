@@ -6,6 +6,7 @@ import * as bookingService from "../services/booking.service";
 import { AuthenticatedUser } from "../types/request/base";
 import { CreateBookingRequest } from "../types/request/booking";
 import { BookingStatus } from "@prisma/client";
+import { AdminBookingsFilter } from "../types/response/booking";
 
 export const createBooking = catchAsyncErrorWithCode(
   async (req: Request, res: Response) => {
@@ -76,4 +77,75 @@ export const cancelBooking = catchAsyncErrorWithCode(
     res.json(ResponseHelper.success(null, "Hủy booking thành công"));
   },
   "CANCEL_BOOKING_ERROR",
+);
+
+export const getAdminBookings = catchAsyncErrorWithCode(
+  async (req: Request, res: Response) => {
+    const filter: AdminBookingsFilter = {
+      pageNum: req.query.pageNum ? parseInt(req.query.pageNum as string) : 1,
+      pageSize: req.query.pageSize ? parseInt(req.query.pageSize as string) : 5,
+      sortBy: req.query.sortBy as string,
+      sortDirection: req.query.sortDirection as "asc" | "desc",
+      status: req.query.status as string,
+      search: req.query.search as string,
+      checkInDate: req.query.checkInDate as string,
+      checkOutDate: req.query.checkOutDate as string,
+    };
+    const result = await bookingService.getAdminBookings(filter);
+    res
+      .status(200)
+      .json(
+        ResponseHelper.success(
+          result,
+          "Lấy danh sách đặt phòng thành công",
+          "GET_ADMIN_BOOKINGS_SUCCESS",
+        ),
+      );
+  },
+  "GET_ADMIN_BOOKINGS_ERROR",
+);
+
+export const getBookingAnalytics = catchAsyncErrorWithCode(
+  async (req: Request, res: Response) => {
+    const result = await bookingService.getBookingAnalytics();
+    res
+      .status(200)
+      .json(
+        ResponseHelper.success(
+          result,
+          "Lấy dữ liệu thống kê thành công",
+          "GET_BOOKING_ANALYTICS_SUCCESS",
+        ),
+      );
+  },
+  "GET_BOOKING_ANALYTICS_ERROR",
+);
+
+export const updateBookingStatus = catchAsyncErrorWithCode(
+  async (req: Request, res: Response) => {
+    const id = String(req.params.id);
+    const { status } = req.body;
+    await bookingService.updateBookingStatus(id, status as BookingStatus);
+    res.json(ResponseHelper.success(null, "Cập nhật trạng thái thành công"));
+  },
+  "UPDATE_BOOKING_STATUS_ERROR",
+);
+
+export const exportAdminBookings = catchAsyncErrorWithCode(
+  async (req: Request, res: Response) => {
+    const filter = {
+      sortBy: req.query.sortBy as string,
+      sortDirection: req.query.sortDirection as "asc" | "desc",
+      status: req.query.status as string,
+      search: req.query.search as string,
+      checkInDate: req.query.checkInDate as string,
+      checkOutDate: req.query.checkOutDate as string,
+    };
+    const result = await bookingService.exportAdminBookings(filter);
+    res
+      .status(200)
+      .json(
+        ResponseHelper.success(result, "Lấy dữ liệu xuất Excel thành công"),
+      );
+  },
 );

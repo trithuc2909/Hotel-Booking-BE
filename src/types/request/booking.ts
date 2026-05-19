@@ -16,6 +16,7 @@ export interface CreateBookingRequest {
   numberOfGuests: number;
   promotionId?: string;
   notes?: string;
+  paymentMethod?: string;
   rooms: CreateBookingRoom[];
   services: CreateBookingService[];
 }
