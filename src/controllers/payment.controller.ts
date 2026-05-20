@@ -57,7 +57,15 @@ export const initVNPayPayment = catchAsyncErrorWithCode(
       req.socket.remoteAddress ||
       "127.0.0.1";
 
-    if (ipAddr === "::1") ipAddr = "127.0.0.1";
+    if (ipAddr.includes("::ffff:")) {
+      ipAddr = ipAddr.replace("::ffff:", "");
+    }
+
+    const ipv4Regex = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/;
+    if (!ipv4Regex.test(ipAddr)) {
+      ipAddr = "127.0.0.1";
+    }
+
     logger.info(`VNPAY IP Address: ${ipAddr}`);
 
     const result = await paymentService.createVNPayPayment(

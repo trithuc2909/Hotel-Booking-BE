@@ -25,6 +25,15 @@ export const updateUserProfile = async (
     throw AppError.badRequest("Số điện thoại không hợp lệ");
   }
 
+  if (data.dateOfBirth) {
+    const dob = new Date(data.dateOfBirth);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (dob >= today) {
+      throw AppError.badRequest("Ngày sinh phải nhỏ hơn ngày hiện tại");
+    }
+  }
+
   const cleanData = Object.fromEntries(
     Object.entries({
       ...data,

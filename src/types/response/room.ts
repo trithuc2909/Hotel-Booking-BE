@@ -44,6 +44,7 @@ export type RoomsFilter = {
   sortDirection?: "asc" | "desc";
   status?: string;
   search?: string;
+  amenities?: string[];
 };
 
 export type RoomDetailResponse = {

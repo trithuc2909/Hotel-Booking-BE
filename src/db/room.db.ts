@@ -52,6 +52,19 @@ const buildWhereClause = (filter: RoomsFilter): Prisma.Sql => {
     conditions.push(Prisma.sql`r.status = ${filter.status}`);
   }
 
+  if (filter.amenities && filter.amenities.length > 0) {
+    conditions.push(
+      Prisma.sql`
+      (
+        SELECT COUNT(DISTINCT ra."amenityId")
+        FROM room_amenities ra
+        JOIN amenities a ON ra."amenityId" = a.id
+        WHERE ra."roomId" = r.id AND a.name IN (${Prisma.join(filter.amenities)})
+      ) = ${filter.amenities.length}
+    `
+    );
+  }
+
   if (filter.search?.trim()) {
     const search = filter.search.trim().replace(/[%_]/g, "\\$&");
     const keyword = `%${search}%`;

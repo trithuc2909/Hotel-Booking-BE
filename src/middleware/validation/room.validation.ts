@@ -29,6 +29,13 @@ export const getRoomsValidation: ValidationChain[] = [
   query("checkOut").optional().isDate({ format: "YYYY-MM-DD" }),
   query("minPrice").optional().isNumeric().toFloat(),
   query("maxPrice").optional().isNumeric().toFloat(),
+  query("amenities")
+    .optional()
+    .customSanitizer((val) => {
+      if (!val) return undefined;
+      if (typeof val === "string") return val.split(",");
+      return Array.isArray(val) ? val : undefined;
+    }),
 ];
 
 export const getAdminRoomsValidation: ValidationChain[] = [
