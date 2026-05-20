@@ -18,6 +18,8 @@ export type RoomResponse = {
   rating: number | null;
   status: string;
   statusLabel: string | null;
+  displayStatus?: string;
+  displayStatusLabel?: string | null;
   amenities: AmenityResponse[];
 };
 

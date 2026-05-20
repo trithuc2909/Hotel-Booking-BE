@@ -16,6 +16,9 @@ import {
 import prisma from "../db/prisma";
 import { minioService } from "./minio.service";
 import { v4 as uuidv4 } from "uuid";
+import { BookingStatus } from "@prisma/client";
+import { STATUS_TYPE } from "../constant/status.constant";
+import { resolveRoomDisplayStatus } from "../utils/roomStatusResolver";
 
 const ALLOWED_SORT = ["basePrice", "rating", "roomName", "createdOn"];
 
@@ -83,19 +86,44 @@ export const getRoomById = async (id: string): Promise<RoomDetailResponse> => {
 export const getAdminRooms = async (filter: RoomsFilter) => {
   const pageNum = Math.max(1, filter.pageNum ?? 1);
   const pageSize = Math.min(100, Math.max(1, filter.pageSize ?? 9));
-
   const sortBy = ALLOWED_SORT.includes(filter.sortBy!)
     ? filter.sortBy
     : "createdOn";
   const sortDirection = filter.sortDirection === "desc" ? "desc" : "asc";
-
-  return roomDb.findAllRooms({
+  const result = await roomDb.findAllRoomsForAdmin({
     ...filter,
     pageNum,
     pageSize,
     sortBy,
     sortDirection,
   });
+  const statusCodes = await prisma.code.findMany({
+    where: { type: STATUS_TYPE.ROOM_STATUS, isActive: true },
+    select: { code: true, displayAs: true },
+  });
+  const statusLabelMap = Object.fromEntries(
+    statusCodes.map((c) => [c.code, c.displayAs]),
+  );
+  const now = new Date();
+  const enrichedData = result.data.map((room: any) => {
+    const displayStatus = resolveRoomDisplayStatus({
+      physicalStatus: room.status,
+      activeBooking: room.activeBooking ?? null,
+      upcomingBooking: room.upcomingBooking ?? null,
+      now,
+    });
+    return {
+      ...room,
+      displayStatus,
+      displayStatusLabel: statusLabelMap[displayStatus] ?? null,
+      activeBooking: undefined,
+      upcomingBooking: undefined,
+    };
+  });
+  return {
+    ...result,
+    data: enrichedData,
+  };
 };
 
 export const updateRoomStatus = async (
@@ -116,11 +144,10 @@ export const updateRoomStatus = async (
   if (!validStatus)
     throw AppError.badRequest("Trạng thái không hợp lệ", "INVALID_STATUS");
 
-  const allowedTransitions: Record<RoomStatusCode, RoomStatusCode[]> = {
-    AVL: ["OCP", "RSV"],
-    OCP: ["CLN"],
+  const allowedTransitions = {
+    AVL: ["CLN", "MNT"],
     CLN: ["AVL"],
-    RSV: ["OCP", "AVL"],
+    MNT: ["AVL"],
   };
 
   const currentStatus = room.status as RoomStatusCode;
@@ -138,25 +165,24 @@ export const deleteRoomById = async (id: string): Promise<void> => {
   const room = await roomDb.findRoomByIdForAdmin(id);
   if (!room) throw AppError.notFound("Không tìm thấy phòng", "ROOM_NOT_FOUND");
 
-  if (room.status === ROOM_STATUS.OCCUPIED) {
+  const hasActiveBooking = await prisma.bookingRoom.findFirst({
+    where: {
+      roomId: id,
+      booking: {
+        status: {
+          in: [BookingStatus.CONFIRMED, BookingStatus.CHECKED_IN],
+        },
+        checkOutDate: { gt: new Date() },
+      },
+    },
+  });
+
+  if (hasActiveBooking) {
     throw AppError.badRequest(
-      "Không thể xóa phòng đang có khách",
-      "ROOM_OCCUPIED",
+      "Không thể xóa phòng đang có lịch đặt",
+      "ROOM_HAS_BOOKING",
     );
   }
-
-  // const hasBooking = await prisma.booking.findFirst({
-  //   where: {
-  //     roomId: id,
-  //     status: {
-  //       in: [BOOKING_STATUS.CONFIRMED, BOOKING_STATUS.PENDING],
-  //     },
-  //   },
-  // });
-
-  //   if (hasBooking) {
-  //   throw AppError.badRequest("Phòng đã có lịch đặt", "ROOM_HAS_BOOKING");
-  // }
   await roomDb.deleteRoomById(id);
 };
 
@@ -282,7 +308,8 @@ export const updateRoom = async (
 
   if (uploaded) {
     const oldThumbChanged =
-      uploaded.thumbnailUrl && uploaded.thumbnailUrl !== (room.thumbnailUrl ?? "");
+      uploaded.thumbnailUrl &&
+      uploaded.thumbnailUrl !== (room.thumbnailUrl ?? "");
     await minioService.deleteRoomImages({
       thumbnailUrl: oldThumbChanged ? room.thumbnailUrl : undefined,
       imageUrls: uploaded.imageUrls?.length ? oldImageUrls : [],

@@ -9,6 +9,7 @@ import {
   AdminBookingsFilter,
   BookingHistoryResponse,
 } from "../types/response/booking";
+import { ROOM_STATUS } from "../constant/room.constant";
 
 export const upsertCustomer = async (userId: string): Promise<string> => {
   const profile = await prisma.userProfile.findUnique({
@@ -208,6 +209,38 @@ export const updateBookingStatus = async (
   if (!status) {
     throw AppError.badRequest("Trạng thái không hợp lệ", "INVALID_STATUS");
   }
+
+  const now = new Date();
+
+  if (status === BookingStatus.CHECKED_OUT) {
+    const roomIds = booking.rooms.map((r: any) => r.roomId);
+    await prisma.$transaction([
+      prisma.booking.update({
+        where: { id: bookingId },
+        data: {
+          status,
+          actualCheckOutDate: now,
+        },
+      }),
+      prisma.room.updateMany({
+        where: { id: { in: roomIds } },
+        data: { status: ROOM_STATUS.CLEANING },
+      }),
+    ]);
+    return bookingDb.findBookingById(bookingId);
+  }
+
+  if (status === BookingStatus.CHECKED_IN) {
+    await prisma.booking.update({
+      where: { id: bookingId },
+      data: {
+        status,
+        actualCheckInDate: now,
+      },
+    });
+    return bookingDb.findBookingById(bookingId);
+  }
+
   return bookingDb.updateBookingStatus(bookingId, status);
 };
 

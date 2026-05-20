@@ -13,8 +13,9 @@ const prisma = new PrismaClient({
 // Log queries trong development mode
 if (process.env.NODE_ENV === "development") {
   prisma.$on("query", (e: any) => {
-    logger.debug(`Query: ${e.query}`);
-    logger.debug(`Duration: ${e.duration}ms`);
+    if (e.duration > 500) {
+      logger.warn(`[SLOW QUERY] ${e.duration}ms: ${e.query}`);
+    }
   });
 }
 

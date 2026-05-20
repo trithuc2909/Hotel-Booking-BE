@@ -16,9 +16,7 @@ import {
   UpdateRoomStatusRequest,
 } from "../types/request/room";
 import { ROLE_CONSTANTS } from "../constant/common.constant";
-import {
-  BOOKING_STATUS_HOLDS_ROOM,
-} from "../constant/booking.constant";
+import { BOOKING_STATUS, BOOKING_STATUS_HOLDS_ROOM } from "../constant/booking.constant";
 
 type PrismaTx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
 
@@ -196,6 +194,100 @@ SELECT
   `;
 
   return result[0] ?? null;
+};
+
+export const findAllRoomsForAdmin = async (
+  filter: RoomsFilter,
+): Promise<FindAllRoomsResponse> => {
+  const { pageNum, pageSize, sortBy, sortDirection } = filter;
+  const offset = (pageNum! - 1) * pageSize!;
+  const whereClause = buildWhereClause(filter);
+  const safeSortBy = SORT_COLUMNS_MAP[sortBy!] ?? Prisma.sql`r."createdOn"`;
+  const safeSortDirection =
+    sortDirection === "desc" ? Prisma.sql`DESC` : Prisma.sql`ASC`;
+  const dataQuery = prisma.$queryRaw<
+    (RoomResponse & {
+      activeBooking: { checkInDate: Date; checkOutDate: Date } | null;
+      upcomingBooking: { checkInDate: Date; checkOutDate: Date } | null;
+    })[]
+  >`
+    SELECT
+      r.id,
+      rt.id         AS "roomTypeId",
+      rt.name       AS "roomTypeName",
+      rt.code       AS "roomTypeCode",
+      r."roomNumber",
+      r."roomName",
+      r.notes,
+      r."basePrice",
+      r."maxGuests",
+      r."thumbnailUrl",
+      r.status,
+      c."displayAs" AS "statusLabel",
+      r."rating",
+      COALESCE(
+        JSON_AGG(
+          JSON_BUILD_OBJECT('id', a.id, 'name', a.name, 'icon', a.icon)
+        ) FILTER (WHERE a.id IS NOT NULL),
+        '[]'::json
+      ) AS "amenities",
+      (
+        SELECT JSON_BUILD_OBJECT(
+          'checkInDate', b."checkInDate",
+          'checkOutDate', b."checkOutDate"
+        )
+        FROM booking_rooms br
+        JOIN bookings b ON b.id = br."bookingId"
+        WHERE br."roomId" = r.id
+          AND b.status::text IN (${Prisma.raw(
+            [BOOKING_STATUS.CONFIRMED, BOOKING_STATUS.CHECKED_IN]
+              .map((s) => `'${s}'`)
+              .join(","),
+          )})
+          AND b."checkInDate" <= NOW()
+          AND b."checkOutDate" > NOW()
+        LIMIT 1
+      ) AS "activeBooking",
+      (
+        SELECT JSON_BUILD_OBJECT(
+          'checkInDate', b."checkInDate",
+          'checkOutDate', b."checkOutDate"
+        )
+        FROM booking_rooms br
+        JOIN bookings b ON b.id = br."bookingId"
+        WHERE br."roomId" = r.id
+          AND b.status::text = ${BOOKING_STATUS.CONFIRMED}
+          AND DATE(b."checkInDate") = CURRENT_DATE
+          AND b."checkInDate" > NOW()
+        LIMIT 1
+      ) AS "upcomingBooking"
+    FROM rooms r
+    INNER JOIN room_types rt ON r."roomTypeId" = rt.id
+    LEFT JOIN room_amenities ra ON ra."roomId" = r.id
+    LEFT JOIN amenities a
+      ON a.id = ra."amenityId"
+      AND a.status = ${STATUS.ACTIVE}
+    LEFT JOIN codes c ON c.code = r.status AND c.type = ${STATUS_TYPE.ROOM_STATUS}
+    ${whereClause}
+    GROUP BY r.id, rt.id, rt.name, rt.code, c."displayAs"
+    ORDER BY ${safeSortBy} ${safeSortDirection}
+    LIMIT ${pageSize} OFFSET ${offset}
+  `;
+
+  const countQuery = prisma.$queryRaw<{ count: bigint }[]>`
+    SELECT COUNT(DISTINCT r.id) AS count
+    FROM rooms r
+    INNER JOIN room_types rt ON r."roomTypeId" = rt.id
+    LEFT JOIN room_amenities ra ON ra."roomId" = r.id
+    LEFT JOIN amenities a
+      ON a.id = ra."amenityId"
+      AND a.status = ${STATUS.ACTIVE}
+    ${whereClause}
+  `;
+
+  const [data, countResult] = await Promise.all([dataQuery, countQuery]);
+  const total = Number(countResult[0]?.count ?? 0);
+  return { data: data as any, total, pageNum: pageNum!, pageSize: pageSize! };
 };
 
 export const findRoomByIdForAdmin = async (
