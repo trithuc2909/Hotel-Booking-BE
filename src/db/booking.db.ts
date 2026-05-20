@@ -49,8 +49,8 @@ export const createBooking = async (data: CreateBookingRequest) => {
         JOIN bookings b ON b.id = br."bookingId"
         WHERE br."roomId" IN (${Prisma.join(roomIds)})
           AND b.status::text = ANY(ARRAY[${Prisma.raw(
-            BOOKING_STATUS_HOLDS_ROOM.map((s) => `'${s}'`).join(","),
-          )}]::text[])
+        BOOKING_STATUS_HOLDS_ROOM.map((s) => `'${s}'`).join(","),
+      )}]::text[])
           AND b."checkInDate" < ${data.checkOutDate}
           AND b."checkOutDate" > ${data.checkInDate}
       `;
@@ -62,10 +62,12 @@ export const createBooking = async (data: CreateBookingRequest) => {
         );
       }
 
-      const roomsFromDb = await tx.room.findMany({
-        where: { id: { in: roomIds }, isDeleted: false },
-        select: { id: true, roomName: true, basePrice: true },
-      });
+      const roomsFromDb = await tx.$queryRaw<any[]>`
+        SELECT id, "roomName", "basePrice"
+        FROM rooms
+        WHERE id IN (${Prisma.join(roomIds)}) AND "isDeleted" = false
+        FOR UPDATE
+      `;
 
       if (roomsFromDb.length !== roomIds.length) {
         throw AppError.notFound(
@@ -177,8 +179,8 @@ export const createBooking = async (data: CreateBookingRequest) => {
         JOIN bookings b ON b.id = br."bookingId"
         WHERE br."roomId" IN (${Prisma.join(roomIds)})
           AND b.status::text = ANY(ARRAY[${Prisma.raw(
-            BOOKING_STATUS_HOLDS_ROOM.map((s) => `'${s}'`).join(","),
-          )}]::text[])
+        BOOKING_STATUS_HOLDS_ROOM.map((s) => `'${s}'`).join(","),
+      )}]::text[])
           AND b."checkInDate" < ${data.checkOutDate}
           AND b."checkOutDate" > ${data.checkInDate}
         LIMIT 1
@@ -216,7 +218,6 @@ export const createBooking = async (data: CreateBookingRequest) => {
         },
       });
     },
-    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
   );
 };
 
