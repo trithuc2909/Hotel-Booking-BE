@@ -11,7 +11,52 @@ import {
 } from "../types/response/booking";
 import { ROOM_STATUS } from "../constant/room.constant";
 
-export const upsertCustomer = async (userId: string): Promise<string> => {
+export const upsertCustomer = async (userId?: string, fullName?: string, phone?: string, email?: string): Promise<string> => {
+  if (!userId) {
+    if (!fullName || !phone) {
+      throw AppError.badRequest(
+        "Vui lòng nhập đầy đủ họ tên và số điện thoại khách hàng",
+        "CUSTOMER_INFO_REQUIRED",
+      );
+    }
+    const normalized = normalizePhone(phone)!;
+
+    let customer = await prisma.customer.findFirst({
+      where: { phone: normalized },
+    });
+    if (customer) {
+      customer = await prisma.customer.update({
+        where: { id: customer.id },
+        data: {
+          fullName,
+          email: email || customer.email,
+        },
+      });
+    } else {
+      customer = await prisma.customer.create({
+        data: {
+          fullName,
+          phone: normalized,
+          email: email || null,
+        },
+      });
+    }
+    return customer.id;
+  }
+  if (fullName || phone) {
+    await prisma.userProfile.upsert({
+      where: { userId },
+      create: {
+        userId,
+        fullName: fullName,
+        phone: normalizePhone(phone),
+      },
+      update: {
+        ...(fullName && { fullName: fullName }),
+        ...(phone && { phone: normalizePhone(phone) }),
+      },
+    });
+  }
   const profile = await prisma.userProfile.findUnique({
     where: { userId },
     select: {
@@ -22,22 +67,16 @@ export const upsertCustomer = async (userId: string): Promise<string> => {
       dateOfBirth: true,
     },
   });
-
-  if (!profile)
-    throw AppError.notFound("Chưa có hồ sơ người dùng", "PROFILE_NOT_FOUND");
-
-  if (!profile.fullName || !profile.phone) {
+  if (!profile?.fullName || !profile?.phone) {
     throw AppError.badRequest(
-      "Vui lòng cập nhật họ tên và số điện thoại trước khi đặt phòng",
+      "Vui lòng nhập họ tên và số điện thoại để đặt phòng",
       "PROFILE_INCOMPLETE",
     );
   }
-
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { email: true },
   });
-
   const customer = await prisma.customer.upsert({
     where: { userId },
     update: {
@@ -56,14 +95,12 @@ export const upsertCustomer = async (userId: string): Promise<string> => {
     },
     select: { id: true },
   });
-
   return customer.id;
 };
 
 export const createBooking = async (data: CreateBookingRequest) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-
   if (data.rooms.length === 0) {
     throw AppError.badRequest("Phải chọn ít nhất 1 phòng", "NO_ROOMS");
   }
@@ -79,9 +116,7 @@ export const createBooking = async (data: CreateBookingRequest) => {
       "INVALID_CHECKOUT",
     );
   }
-
-  const customerId = await upsertCustomer(data.userId!);
-
+  const customerId = await upsertCustomer(data.userId, data.fullName, data.phone, data.email);
   return bookingDb.createBooking({ ...data, customerId });
 };
 
@@ -129,9 +164,9 @@ export const getBookingHistory = async (
 
     latestPayment: b.latestPayment
       ? {
-          ...b.latestPayment,
-          amount: Number(b.latestPayment.amount),
-        }
+        ...b.latestPayment,
+        amount: Number(b.latestPayment.amount),
+      }
       : null,
   }));
 };

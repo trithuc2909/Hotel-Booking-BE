@@ -7,6 +7,7 @@ import { AuthenticatedUser } from "../types/request/base";
 import { CreateBookingRequest } from "../types/request/booking";
 import { BookingStatus } from "@prisma/client";
 import { AdminBookingsFilter } from "../types/response/booking";
+import { ROLE } from "../constant/role.constant";
 
 export const createBooking = catchAsyncErrorWithCode(
   async (req: Request, res: Response) => {
@@ -15,7 +16,8 @@ export const createBooking = catchAsyncErrorWithCode(
 
     const booking = await bookingService.createBooking({
       ...body,
-      userId: user.id,
+      userId: user.role === ROLE.ADMIN ? undefined : user.id,
+      createdById: user.role === ROLE.ADMIN ? user.id : undefined,
       checkInDate: new Date(String(body.checkInDate)),
       checkOutDate: new Date(String(body.checkOutDate)),
       rooms: body.rooms ?? [],

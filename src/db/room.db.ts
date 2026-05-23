@@ -8,7 +8,7 @@ import {
   RoomsFilter,
 } from "../types/response/room";
 import prisma from "./prisma";
-import { ROOM_STATUS } from "../constant/room.constant";
+import { ROOM_STATUS, ROOM_DISPLAY_STATUS } from "../constant/room.constant";
 import {
   AvailableRoomsRequest,
   CreateRoomRequest,
@@ -49,7 +49,72 @@ const buildWhereClause = (filter: RoomsFilter): Prisma.Sql => {
   }
 
   if (filter.status) {
-    conditions.push(Prisma.sql`r.status = ${filter.status}`);
+    if (filter.status === ROOM_DISPLAY_STATUS.OCCUPIED) {
+      conditions.push(Prisma.sql`
+        EXISTS (
+          SELECT 1 FROM booking_rooms br
+          JOIN bookings b ON b.id = br."bookingId"
+          WHERE br."roomId" = r.id
+            AND b.status::text IN (${BOOKING_STATUS.CONFIRMED}, ${BOOKING_STATUS.CHECKED_IN})
+            AND b."checkInDate" <= NOW()
+            AND b."checkOutDate" > NOW()
+        )
+      `);
+    } else if (filter.status === ROOM_DISPLAY_STATUS.RESERVED) {
+      conditions.push(Prisma.sql`
+        EXISTS (
+          SELECT 1 FROM booking_rooms br
+          JOIN bookings b ON b.id = br."bookingId"
+          WHERE br."roomId" = r.id
+            AND b.status::text = ${BOOKING_STATUS.CONFIRMED}
+            AND DATE(b."checkInDate") = CURRENT_DATE
+            AND b."checkInDate" > NOW()
+        )
+      `);
+    } else if (filter.status === ROOM_DISPLAY_STATUS.AVAILABLE) {
+      conditions.push(Prisma.sql`r.status = ${ROOM_STATUS.AVAILABLE}`);
+      conditions.push(Prisma.sql`
+        NOT EXISTS (
+          SELECT 1 FROM booking_rooms br
+          JOIN bookings b ON b.id = br."bookingId"
+          WHERE br."roomId" = r.id
+            AND b.status::text IN (${BOOKING_STATUS.CONFIRMED}, ${BOOKING_STATUS.CHECKED_IN})
+            AND b."checkInDate" <= NOW()
+            AND b."checkOutDate" > NOW()
+        )
+      `);
+    } else {
+      conditions.push(Prisma.sql`r.status = ${filter.status}`);
+      conditions.push(Prisma.sql`
+        NOT EXISTS (
+          SELECT 1 FROM booking_rooms br
+          JOIN bookings b ON b.id = br."bookingId"
+          WHERE br."roomId" = r.id
+            AND b.status::text IN (${BOOKING_STATUS.CONFIRMED}, ${BOOKING_STATUS.CHECKED_IN})
+            AND b."checkInDate" <= NOW()
+            AND b."checkOutDate" > NOW()
+        )
+      `);
+    }
+  }
+
+  if (filter.checkIn && filter.checkOut) {
+    const checkInDate = new Date(filter.checkIn);
+    const checkOutDate = new Date(filter.checkOut);
+    conditions.push(
+      Prisma.sql`
+      r.id NOT IN (
+        SELECT DISTINCT br."roomId"
+        FROM booking_rooms br
+        JOIN bookings b ON b.id = br."bookingId"
+        WHERE b.status::text = ANY(ARRAY[${Prisma.raw(
+        BOOKING_STATUS_HOLDS_ROOM.map((s) => `'${s}'`).join(","),
+      )}]::text[])
+          AND b."checkInDate" < ${checkOutDate}
+          AND b."checkOutDate" > ${checkInDate}
+      )
+    `
+    );
   }
 
   if (filter.amenities && filter.amenities.length > 0) {
@@ -253,10 +318,10 @@ export const findAllRoomsForAdmin = async (
         JOIN bookings b ON b.id = br."bookingId"
         WHERE br."roomId" = r.id
           AND b.status::text IN (${Prisma.raw(
-            [BOOKING_STATUS.CONFIRMED, BOOKING_STATUS.CHECKED_IN]
-              .map((s) => `'${s}'`)
-              .join(","),
-          )})
+    [BOOKING_STATUS.CONFIRMED, BOOKING_STATUS.CHECKED_IN]
+      .map((s) => `'${s}'`)
+      .join(","),
+  )})
           AND b."checkInDate" <= NOW()
           AND b."checkOutDate" > NOW()
         LIMIT 1

@@ -61,6 +61,22 @@ export const createBookingValidation = [
     .isString()
     .withMessage("paymentMethod phải là chuỗi")
     .trim(),
+
+  body("fullName")
+    .optional()
+    .isString()
+    .withMessage("fullName phải là chuỗi")
+    .isLength({ max: 100 })
+    .withMessage("fullName tối đa 100 ký tự")
+    .trim(),
+
+  body("phone")
+    .optional()
+    .isString()
+    .withMessage("phone phải là chuỗi")
+    .isLength({ max: 10 })
+    .withMessage("phone tối đa 10 ký tự")
+    .trim(),
 ];
 
 export const initPaymentValidation = [

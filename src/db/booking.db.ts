@@ -197,7 +197,8 @@ export const createBooking = async (data: CreateBookingRequest) => {
         data: {
           bookingCode,
           customerId: data.customerId,
-          userId: data.userId,
+          userId: data.userId || null,
+          createdById: data.createdById || null,
           checkInDate: data.checkInDate,
           checkOutDate: data.checkOutDate,
           numberOfGuests: data.numberOfGuests,

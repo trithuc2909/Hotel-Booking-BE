@@ -11,6 +11,10 @@ export interface CreateBookingService {
 export interface CreateBookingRequest {
   customerId: string;
   userId?: string;
+  createdById?: string;
+  fullName?: string;
+  phone?: string;
+  email?: string;
   checkInDate: Date;
   checkOutDate: Date;
   numberOfGuests: number;

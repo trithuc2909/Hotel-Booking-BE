@@ -123,6 +123,7 @@ export const getRoomTimeline = async (fromDate: Date, toDate: Date) => {
       },
 
       select: {
+        id: true,
         bookingCode: true,
         checkInDate: true,
         checkOutDate: true,
@@ -152,6 +153,7 @@ export const getRoomTimeline = async (fromDate: Date, toDate: Date) => {
       }
 
       bookingMap.get(bookedRoom.roomId)?.push({
+        id: booking.id,
         guestName: booking.customer.fullName,
         bookingCode: booking.bookingCode,
         checkInDate: booking.checkInDate,
