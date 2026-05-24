@@ -71,7 +71,7 @@ export const getAllRooms = async (
     pageSize,
     sortBy,
     sortDirection,
-    status: filter.status ?? ROOM_STATUS.AVAILABLE,
+    status: filter.status ?? (filter.checkIn || filter.checkOut ? ROOM_STATUS.AVAILABLE : undefined),
   });
 };
 
