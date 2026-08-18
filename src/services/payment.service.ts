@@ -68,7 +68,7 @@ export const createMomoPayment = async (bookingId: string, userId: string) => {
   const momoRes = await momoService.createMomoPayment({
     orderId,
     amount: Number(booking.totalAmount),
-    orderInfo: `Thanh toán đặt phòng ${booking.bookingCode}`,
+    orderInfo: `Thanh toan dat phong ${booking.bookingCode}`,
     redirectUrl: `${config.momo.redirectUrl}?bookingId=${bookingId}`,
   });
 
@@ -206,7 +206,7 @@ export const createVNPayPayment = async (
   const payUrl = vnpayService.createVNPayUrl({
     orderId,
     amount,
-    orderInfo: `Thanh toán đặt phòng ${booking.bookingCode}`,
+    orderInfo: `Thanh toan dat phong ${booking.bookingCode}`,
     ipAddr,
     returnUrl: `${config.vnpay.returnUrl}?bookingId=${bookingId}`,
   });

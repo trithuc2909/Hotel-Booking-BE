@@ -47,7 +47,6 @@ export const createVNPayUrl = (request: VNPayPaymentRequest): string => {
   const urlQuery = sortedKeys
     .map((k) => `${k}=${Encode(params[k])}`)
     .join("&");
-
   return `${config.vnpay.url}?${urlQuery}&vnp_SecureHash=${signature}`;
 };
 
